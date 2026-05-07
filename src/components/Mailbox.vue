@@ -294,12 +294,8 @@ export default {
 		 * about how many messages are available and how to select more.
 		 */
 		selectAllHint() {
-			if (this.endReached) {
-				return ''
-			}
-			const total = this.totalEnvelopeCount
-			const loaded = this.flatEnvelopeList.length
-			if (total > loaded) {
+			// Show hint when more messages exist beyond the loaded page
+			if (!this.endReached && this.flatEnvelopeList.length > 0) {
 				return this.t('mail', 'Scroll down to include more or use filter for custom selection')
 			}
 			return ''
@@ -842,12 +838,16 @@ export default {
 			// Wait for Vue to process the search query change and start loading
 			await this.$nextTick()
 			// Wait for loading to begin (searchQuery watcher triggers loadEnvelopes)
-			while (!this.loadingEnvelopes) {
+			let waited = 0
+			while (!this.loadingEnvelopes && waited < 5000) {
 				await new Promise((resolve) => setTimeout(resolve, 50))
+				waited += 50
 			}
 			// Wait for loading to finish
-			while (this.loadingEnvelopes) {
+			waited = 0
+			while (this.loadingEnvelopes && waited < 30000) {
 				await new Promise((resolve) => setTimeout(resolve, 100))
+				waited += 100
 			}
 			// Now load remaining pages and select all
 			await this.selectAllMatchingAction()
