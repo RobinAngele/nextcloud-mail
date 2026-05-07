@@ -18,17 +18,17 @@
 		<EmptyMailboxSection v-else-if="isPriorityInbox && !hasMessages" key="empty" />
 		<EmptyMailbox v-else-if="!hasMessages" key="empty" />
 		<div v-else>
-			<div v-if="!selectMode" class="select-all-bar">
-				<NcCheckboxRadioSwitch
-					:model-value="false"
-					type="checkbox"
-					@update:checked="selectAll">
-					{{ n('mail', 'Select {count} message', 'Select all {count} messages', flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
-				</NcCheckboxRadioSwitch>
-			</div>
+			<NcCheckboxRadioSwitch
+				:model-value="allSelected"
+				type="checkbox"
+				class="select-all-bar"
+				@update:checked="allSelected ? unselectAll() : selectAll()">
+				{{ n('mail', 'Select {count} message', 'Select all {count} messages', flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
+			</NcCheckboxRadioSwitch>
 			<div
 				v-if="allSelected && !selectAllMatching && flatEnvelopeList.length < totalEnvelopeCount"
 				class="select-all-banner">
+				<NcLoadingIcon v-if="loadingAllMatching" :size="16" />
 				<span>{{ n('mail',
 					'All {visible} message on this page selected. Select all {total} matching this filter?',
 					'All {visible} messages on this page selected. Select all {total} matching this filter?',
@@ -36,19 +36,6 @@
 					{ visible: flatEnvelopeList.length, total: totalEnvelopeCount }) }}</span>
 				<NcButton type="primary" @click="selectAllMatchingAction">
 					{{ n('mail', 'Select all {count} message', 'Select all {count} messages', totalEnvelopeCount, { count: totalEnvelopeCount }) }}
-				</NcButton>
-			</div>
-			<div
-				v-if="selectAllMatching"
-				class="select-all-banner select-all-banner--active">
-				<NcLoadingIcon v-if="loadingAllMatching" :size="16" />
-				<span>{{ n('mail',
-					'{count} message selected',
-					'All {count} messages selected',
-					selection.length,
-					{ count: selection.length }) }}</span>
-				<NcButton type="tertiary" @click="unselectAll">
-					{{ t('mail', 'Clear selection') }}
 				</NcButton>
 			</div>
 			<template v-if="hasGroupedEnvelopes && !isPriorityInbox">
@@ -798,8 +785,13 @@ export default {
 		 * Waits for envelopes to finish loading, then selects all.
 		 */
 		async onBusSelectAllMatching() {
-			// Give the search query change time to trigger loading
+			// Wait for envelopes to finish loading after the search query changed
 			await this.$nextTick()
+			// Poll until loading finishes
+			while (this.loadingEnvelopes) {
+				await new Promise((resolve) => setTimeout(resolve, 100))
+			}
+			// Now select all loaded envelopes
 			await this.selectAllMatchingAction()
 		},
 
@@ -866,10 +858,6 @@ export default {
 	background-color: var(--color-primary-light);
 	border-bottom: 1px solid var(--color-border);
 	font-size: var(--default-font-size);
-
-	&--active {
-		background-color: var(--color-success-light);
-	}
 
 	span {
 		flex: 1;
