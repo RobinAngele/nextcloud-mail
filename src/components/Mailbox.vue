@@ -24,11 +24,12 @@
 				type="checkbox"
 				class="select-all-bar"
 				@update:checked="allSelected ? unselectAll() : selectAll()">
-				<NcLoadingIcon v-if="loadingAllMatching" :size="16" />
-				{{ loadingAllMatching
-					? t('mail', 'Selecting messages…')
-					: n('mail', 'Select {count} message', 'Select all {count} messages', flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
+				{{ n('mail', 'Select {count} message', 'Select all {count} messages', flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
 			</NcCheckboxRadioSwitch>
+			<div v-if="loadingAllMatching" class="select-all-loading">
+				<NcLoadingIcon :size="16" />
+				<span>{{ t('mail', 'Selecting messages…') }}</span>
+			</div>
 			<div
 				v-if="allSelected && !selectAllMatching && flatEnvelopeList.length < totalEnvelopeCount"
 				class="select-all-banner">
@@ -858,6 +859,16 @@ export default {
 	&:hover {
 		background-color: var(--color-background-hover);
 	}
+}
+
+.select-all-loading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 8px 4px 36px;
+	color: var(--color-text-maxcontrast);
+	font-size: var(--default-font-size);
+	border-bottom: 1px solid var(--color-border);
 }
 
 .select-all-banner {
