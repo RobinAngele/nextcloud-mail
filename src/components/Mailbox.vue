@@ -785,13 +785,17 @@ export default {
 		 * Waits for envelopes to finish loading, then selects all.
 		 */
 		async onBusSelectAllMatching() {
-			// Wait for envelopes to finish loading after the search query changed
+			// Wait for Vue to process the search query change and start loading
 			await this.$nextTick()
-			// Poll until loading finishes
+			// Wait for loading to begin (searchQuery watcher triggers loadEnvelopes)
+			while (!this.loadingEnvelopes) {
+				await new Promise((resolve) => setTimeout(resolve, 50))
+			}
+			// Wait for loading to finish
 			while (this.loadingEnvelopes) {
 				await new Promise((resolve) => setTimeout(resolve, 100))
 			}
-			// Now select all loaded envelopes
+			// Now load remaining pages and select all
 			await this.selectAllMatchingAction()
 		},
 
