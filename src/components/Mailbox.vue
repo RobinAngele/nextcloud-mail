@@ -266,7 +266,9 @@ export default {
 		 */
 		selectAllLabel() {
 			const count = this.flatEnvelopeList.length
-			if (this.searchQuery) {
+			// Only show "matching filter" if a real filter is active,
+			// not just the default "match:allof" sent on reset
+			if (this.searchQuery && this.searchQuery.trim() !== 'match:allof') {
 				return this.n('mail',
 					'Select {count} message matching filter',
 					'Select {count} messages matching filter',
