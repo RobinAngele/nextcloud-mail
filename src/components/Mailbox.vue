@@ -296,7 +296,7 @@ export default {
 		selectAllHint() {
 			// Show hint when more messages exist beyond the loaded page
 			if (!this.endReached && this.flatEnvelopeList.length > 0) {
-				return this.t('mail', 'Scroll down to load more, use filter for custom selection, or click an avatar to pick individually')
+				return this.t('mail', 'Scroll down to load more, use filter for custom selection, or select messages one by one')
 			}
 			return ''
 		},
