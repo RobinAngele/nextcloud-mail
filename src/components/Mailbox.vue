@@ -296,7 +296,7 @@ export default {
 		selectAllHint() {
 			// Show hint when more messages exist beyond the loaded page
 			if (!this.endReached && this.flatEnvelopeList.length > 0) {
-				return this.t('mail', 'Scroll down to include more or use filter for custom selection')
+				return this.t('mail', 'Scroll down to load more, use filter for custom selection, or click an avatar to pick individually')
 			}
 			return ''
 		},
@@ -835,20 +835,15 @@ export default {
 		 * Waits for envelopes to finish loading, then selects all.
 		 */
 		async onBusSelectAllMatching() {
-			// Wait for Vue to process the search query change and start loading
-			await this.$nextTick()
-			// Wait for loading to begin (searchQuery watcher triggers loadEnvelopes)
-			let waited = 0
-			while (!this.loadingEnvelopes && waited < 5000) {
-				await new Promise((resolve) => setTimeout(resolve, 50))
-				waited += 50
-			}
-			// Wait for loading to finish
-			waited = 0
-			while (this.loadingEnvelopes && waited < 30000) {
-				await new Promise((resolve) => setTimeout(resolve, 100))
-				waited += 100
-			}
+			// Show spinner immediately
+			this.loadingAllMatching = true
+			this.selectAllMatching = true
+
+			// Force a fresh load of the first page with the current query
+			this.endReached = false
+			this.syncedMailboxes.delete(this.mailbox.databaseId + (this.searchQuery ?? ''))
+			await this.loadEnvelopes()
+
 			// Now load remaining pages and select all
 			await this.selectAllMatchingAction()
 		},
