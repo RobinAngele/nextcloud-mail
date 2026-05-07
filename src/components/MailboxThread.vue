@@ -16,7 +16,8 @@
 					<SearchMessages
 						:mailbox="mailbox"
 						:account-id="account.accountId"
-						@search-changed="onUpdateSearchQuery" />
+						@search-changed="onUpdateSearchQuery"
+						@select-all-matching="onSelectAllMatching" />
 				</div>
 				<AppContentList
 					v-infinite-scroll="onScroll"
@@ -601,6 +602,11 @@ export default {
 
 		onUpdateSearchQuery(query) {
 			this.searchQuery = query
+		},
+
+		onSelectAllMatching() {
+			// Signal the Mailbox component to select all after loading finishes
+			this.bus.emit('select-all-matching')
 		},
 	},
 }
