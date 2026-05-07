@@ -24,7 +24,7 @@
 				type="checkbox"
 				class="select-all-bar"
 				@update:checked="allSelected ? unselectAll() : selectAll()">
-				{{ n('mail', 'Select {count} message', 'Select all {count} messages', flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
+				{{ selectAllLabel }}
 			</NcCheckboxRadioSwitch>
 			<div v-if="loadingAllMatching" class="select-all-loading">
 				<NcLoadingIcon :size="16" />
@@ -256,6 +256,32 @@ export default {
 			}
 			// Otherwise return loaded count; the banner handles the comparison.
 			return this.envelopes.length
+		},
+
+		/**
+		 * Context-aware label for the select-all checkbox.
+		 * - With active filter: "Select {N} messages matching filter"
+		 * - Without filter, more pages exist: "Select {N} messages on this page"
+		 * - All loaded (no filter or all pages fetched): "Select all {N} messages"
+		 */
+		selectAllLabel() {
+			const count = this.flatEnvelopeList.length
+			if (this.searchQuery) {
+				return this.n('mail',
+					'Select {count} message matching filter',
+					'Select {count} messages matching filter',
+					count, { count })
+			}
+			if (!this.endReached && count > 0) {
+				return this.n('mail',
+					'Select {count} message on this page',
+					'Select {count} messages on this page',
+					count, { count })
+			}
+			return this.n('mail',
+				'Select {count} message',
+				'Select all {count} messages',
+				count, { count })
 		},
 	},
 
