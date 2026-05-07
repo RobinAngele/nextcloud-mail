@@ -43,7 +43,7 @@
 						v-if="isAtLeastOneSelectedFavorite"
 						variant="tertiary"
 						:title="n('mail', 'Unfavorite {number}', 'Unfavorite {number}', selection.length, { number: selection.length })"
-						@click.prevent="favoriteAll">
+						@click.prevent="unfavoriteAll">
 						<IconUnFavorite :size="20" />
 					</NcButton>
 
@@ -51,7 +51,7 @@
 						v-if="isAtLeastOneSelectedUnFavorite"
 						variant="tertiary"
 						:title="n('mail', 'Favorite {number}', 'Favorite {number}', selection.length, { number: selection.length })"
-						@click.prevent="unFavoriteAll">
+						@click.prevent="favoriteAll">
 						<IconFavorite :size="20" />
 					</NcButton>
 
@@ -172,6 +172,7 @@ import AlertOctagonIcon from 'vue-material-design-icons/AlertOctagonOutline.vue'
 import IconSelect from 'vue-material-design-icons/CloseThick.vue'
 import EmailRead from 'vue-material-design-icons/EmailOpenOutline.vue'
 import EmailUnread from 'vue-material-design-icons/EmailOutline.vue'
+import ImportantIcon from 'vue-material-design-icons/LabelVariant.vue'
 import ImportantOutlineIcon from 'vue-material-design-icons/LabelVariantOutline.vue'
 import OpenInNewIcon from 'vue-material-design-icons/OpenInNew.vue'
 import AddIcon from 'vue-material-design-icons/Plus.vue'
@@ -204,6 +205,7 @@ export default {
 		ActionButton,
 		Envelope,
 		IconDelete,
+		ImportantIcon,
 		ImportantOutlineIcon,
 		IconFavorite,
 		IconSelect,
@@ -451,23 +453,21 @@ export default {
 			this.unselectAll()
 		},
 
-		favoriteAll() {
-			const favFlag = !this.isAtLeastOneSelectedUnFavorite
+		unfavoriteAll() {
 			this.selectedEnvelopes.forEach((envelope) => {
 				this.mainStore.markEnvelopeFavoriteOrUnfavorite({
 					envelope,
-					favFlag,
+					favFlag: false,
 				})
 			})
 			this.unselectAll()
 		},
 
-		unFavoriteAll() {
-			const favFlag = !this.isAtLeastOneSelectedFavorite
+		favoriteAll() {
 			this.selectedEnvelopes.forEach((envelope) => {
 				this.mainStore.markEnvelopeFavoriteOrUnfavorite({
 					envelope,
-					favFlag,
+					favFlag: true,
 				})
 			})
 			this.unselectAll()
