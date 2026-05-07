@@ -30,6 +30,9 @@
 				<NcLoadingIcon :size="16" />
 				<span>{{ t('mail', 'Selecting messages…') }}</span>
 			</div>
+			<div v-if="selectAllHint && !loadingAllMatching && !allSelected" class="select-all-hint">
+				{{ selectAllHint }}
+			</div>
 			<div
 				v-if="allSelected && !selectAllMatching && flatEnvelopeList.length < totalEnvelopeCount"
 				class="select-all-banner">
@@ -266,24 +269,40 @@ export default {
 		 */
 		selectAllLabel() {
 			const count = this.flatEnvelopeList.length
-			// Only show "matching filter" if a real filter is active,
-			// not just the default "match:allof" sent on reset
-			if (this.searchQuery && this.searchQuery.trim() !== 'match:allof') {
+			const hasFilter = this.searchQuery && this.searchQuery.trim() !== 'match:allof'
+
+			if (hasFilter) {
 				return this.n('mail',
-					'Select {count} message matching filter',
-					'Select {count} messages matching filter',
+					'Select {count} matching message',
+					'Select {count} matching messages',
 					count, { count })
 			}
 			if (!this.endReached && count > 0) {
 				return this.n('mail',
-					'Select {count} message on this page',
-					'Select {count} messages on this page',
+					'Select {count} loaded message',
+					'Select {count} loaded messages',
 					count, { count })
 			}
 			return this.n('mail',
 				'Select {count} message',
 				'Select all {count} messages',
 				count, { count })
+		},
+
+		/**
+		 * Hint shown below the select-all checkbox to give context
+		 * about how many messages are available and how to select more.
+		 */
+		selectAllHint() {
+			if (this.endReached) {
+				return ''
+			}
+			const total = this.totalEnvelopeCount
+			const loaded = this.flatEnvelopeList.length
+			if (total > loaded) {
+				return this.t('mail', '{loaded} loaded · scroll for more · use filter to narrow', { loaded, total })
+			}
+			return ''
 		},
 	},
 
@@ -896,6 +915,13 @@ export default {
 	padding: 4px 8px 4px 36px;
 	color: var(--color-text-maxcontrast);
 	font-size: var(--default-font-size);
+	border-bottom: 1px solid var(--color-border);
+}
+
+.select-all-hint {
+	padding: 2px 8px 2px 36px;
+	color: var(--color-text-maxcontrast);
+	font-size: calc(var(--default-font-size) * 0.85);
 	border-bottom: 1px solid var(--color-border);
 }
 
