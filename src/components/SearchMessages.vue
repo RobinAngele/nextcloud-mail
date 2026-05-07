@@ -378,9 +378,14 @@ export default {
 					icon: IconClose,
 				},
 				{
+					label: t('mail', 'Select all matching'),
+					callback: () => this.selectAllMatching(),
+					type: 'primary',
+				},
+				{
 					label: t('mail', 'Search'),
 					callback: () => this.closeSearchModal(),
-					type: 'primary',
+					type: 'tertiary',
 					icon: IconMagnify,
 				},
 			],
@@ -567,6 +572,15 @@ export default {
 			this.match = 'allof'
 			this.$nextTick(() => {
 				this.sendQueryEvent()
+			})
+		},
+
+		selectAllMatching() {
+			this.moreSearchActions = false
+			this.match = 'allof'
+			this.$nextTick(() => {
+				this.sendQueryEvent()
+				this.$emit('select-all-matching')
 			})
 		},
 

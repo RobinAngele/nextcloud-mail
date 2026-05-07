@@ -293,6 +293,7 @@ export default {
 		this.bus.on('delete', this.onDelete)
 		this.bus.on('archive', this.onArchive)
 		this.bus.on('shortcut', this.handleShortcut)
+		this.bus.on('select-all-matching', this.onBusSelectAllMatching)
 		this.loadMailboxInterval = setInterval(this.loadMailbox, 60000)
 	},
 
@@ -315,6 +316,7 @@ export default {
 		this.bus.off('delete', this.onDelete)
 		this.bus.off('archive', this.onArchive)
 		this.bus.off('shortcut', this.handleShortcut)
+		this.bus.off('select-all-matching', this.onBusSelectAllMatching)
 		this.stopInterval()
 	},
 
@@ -788,6 +790,17 @@ export default {
 			} finally {
 				this.loadingAllMatching = false
 			}
+		},
+
+		/**
+		 * Handler for the 'select-all-matching' bus event emitted from
+		 * SearchMessages when the user clicks 'Select all matching'.
+		 * Waits for envelopes to finish loading, then selects all.
+		 */
+		async onBusSelectAllMatching() {
+			// Give the search query change time to trigger loading
+			await this.$nextTick()
+			await this.selectAllMatchingAction()
 		},
 
 		/**
