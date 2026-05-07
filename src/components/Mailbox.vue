@@ -26,6 +26,31 @@
 					{{ n('mail', 'Select {count} message', 'Select all {count} messages', flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
 				</NcCheckboxRadioSwitch>
 			</div>
+			<div
+				v-if="allSelected && !selectAllMatching && flatEnvelopeList.length < totalEnvelopeCount"
+				class="select-all-banner">
+				<span>{{ n('mail',
+					'All {visible} message on this page selected. Select all {total} matching this filter?',
+					'All {visible} messages on this page selected. Select all {total} matching this filter?',
+					totalEnvelopeCount,
+					{ visible: flatEnvelopeList.length, total: totalEnvelopeCount }) }}</span>
+				<NcButton type="primary" @click="selectAllMatchingAction">
+					{{ n('mail', 'Select all {count} message', 'Select all {count} messages', totalEnvelopeCount, { count: totalEnvelopeCount }) }}
+				</NcButton>
+			</div>
+			<div
+				v-if="selectAllMatching"
+				class="select-all-banner select-all-banner--active">
+				<NcLoadingIcon v-if="loadingAllMatching" :size="16" />
+				<span>{{ n('mail',
+					'{count} message selected',
+					'All {count} messages selected',
+					selection.length,
+					{ count: selection.length }) }}</span>
+				<NcButton type="tertiary" @click="unselectAll">
+					{{ t('mail', 'Clear selection') }}
+				</NcButton>
+			</div>
 			<template v-if="hasGroupedEnvelopes && !isPriorityInbox">
 			<div v-for="[label, group] in groupEnvelopes" :key="label">
 				<SectionTitle class="section-title" :name="getLabelForGroup(label)" />
@@ -74,7 +99,7 @@ import EnvelopeList from './EnvelopeList.vue'
 import Error from './Error.vue'
 import Loading from './Loading.vue'
 import LoadingSkeleton from './LoadingSkeleton.vue'
-import { NcCheckboxRadioSwitch } from '@nextcloud/vue'
+import { NcButton, NcCheckboxRadioSwitch, NcLoadingIcon } from '@nextcloud/vue'
 import SectionTitle from './SectionTitle.vue'
 import MailboxLockedError from '../errors/MailboxLockedError.js'
 import MailboxNotCachedError from '../errors/MailboxNotCachedError.js'
@@ -95,7 +120,9 @@ export default {
 		Error,
 		Loading,
 		LoadingSkeleton,
+		NcButton,
 		NcCheckboxRadioSwitch,
+		NcLoadingIcon,
 		SectionTitle,
 	},
 
@@ -162,6 +189,8 @@ export default {
 			syncedMailboxes: new Set(),
 			skipListTransition: false,
 			selection: [],
+			selectAllMatching: false,
+			loadingAllMatching: false,
 		}
 	},
 
@@ -221,6 +250,20 @@ export default {
 		allSelected() {
 			return this.flatEnvelopeList.length > 0
 				&& this.selection.length === this.flatEnvelopeList.length
+		},
+
+		/**
+		 * Total count of envelopes matching the current filter.
+		 * Falls back to visible count when total is unknown.
+		 */
+		totalEnvelopeCount() {
+			// Use the loaded envelope count — a full count requires a backend API.
+			// When endReached is true, we've loaded all matching envelopes.
+			if (this.endReached) {
+				return this.flatEnvelopeList.length
+			}
+			// Otherwise return loaded count; the banner handles the comparison.
+			return this.envelopes.length
 		},
 	},
 
@@ -726,10 +769,34 @@ export default {
 		},
 
 		/**
+		 * Select all messages matching the current filter across all pages.
+		 * Loads additional pages of envelopes and adds them to the selection.
+		 */
+		async selectAllMatchingAction() {
+			this.loadingAllMatching = true
+			this.selectAllMatching = true
+
+			try {
+				// Load remaining pages until all envelopes are fetched
+				while (!this.endReached) {
+					await this.loadMore()
+				}
+				// Now select all loaded envelopes
+				this.selection = this.flatEnvelopeList.map((e) => e.databaseId)
+			} catch (error) {
+				logger.error('Failed to load all matching envelopes', { error })
+			} finally {
+				this.loadingAllMatching = false
+			}
+		},
+
+		/**
 		 * Clear the current selection.
 		 */
 		unselectAll() {
 			this.selection = []
+			this.selectAllMatching = false
+			this.loadingAllMatching = false
 		},
 
 		getLabelForGroup(group) {
@@ -775,6 +842,24 @@ export default {
 	border-bottom: 1px solid var(--color-border);
 	&:hover {
 		background-color: var(--color-background-hover);
+	}
+}
+
+.select-all-banner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 12px;
+	background-color: var(--color-primary-light);
+	border-bottom: 1px solid var(--color-border);
+	font-size: var(--default-font-size);
+
+	&--active {
+		background-color: var(--color-success-light);
+	}
+
+	span {
+		flex: 1;
 	}
 }
 </style>
