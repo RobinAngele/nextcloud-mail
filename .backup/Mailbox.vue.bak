@@ -18,33 +18,13 @@
 		<EmptyMailboxSection v-else-if="isPriorityInbox && !hasMessages" key="empty" />
 		<EmptyMailbox v-else-if="!hasMessages" key="empty" />
 		<div v-else>
-			<NcCheckboxRadioSwitch
-				:model-value="allSelected"
-				:disabled="loadingAllMatching"
-				type="checkbox"
-				class="select-all-bar"
-				@update:checked="allSelected ? unselectAll() : selectAll()">
-				{{ selectAllLabel }}
-			</NcCheckboxRadioSwitch>
-			<div v-if="loadingAllMatching" class="select-all-loading">
-				<NcLoadingIcon :size="16" />
-				<span>{{ t('mail', 'Selecting messages…') }}</span>
-			</div>
-			<div v-if="selectAllHint && !loadingAllMatching && !allSelected" class="select-all-hint">
-				{{ selectAllHint }}
-			</div>
-			<div
-				v-if="allSelected && !selectAllMatching && flatEnvelopeList.length < totalEnvelopeCount"
-				class="select-all-banner">
-				<NcLoadingIcon v-if="loadingAllMatching" :size="16" />
-				<span>{{ n('mail',
-					'All {visible} message on this page selected. Select all {total} matching this filter?',
-					'All {visible} messages on this page selected. Select all {total} matching this filter?',
-					totalEnvelopeCount,
-					{ visible: flatEnvelopeList.length, total: totalEnvelopeCount }) }}</span>
-				<NcButton type="primary" @click="selectAllMatchingAction">
-					{{ n('mail', 'Select all {count} message', 'Select all {count} messages', totalEnvelopeCount, { count: totalEnvelopeCount }) }}
-				</NcButton>
+			<div v-if="!selectMode" class="select-all-bar">
+				<NcCheckboxRadioSwitch
+					:model-value="false"
+					type="checkbox"
+					@update:checked="selectAll">
+					{{ n('mail', 'Select {count} message', 'Select all {count} messages', flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
+				</NcCheckboxRadioSwitch>
 			</div>
 			<template v-if="hasGroupedEnvelopes && !isPriorityInbox">
 			<div v-for="[label, group] in groupEnvelopes" :key="label">
@@ -94,7 +74,7 @@ import EnvelopeList from './EnvelopeList.vue'
 import Error from './Error.vue'
 import Loading from './Loading.vue'
 import LoadingSkeleton from './LoadingSkeleton.vue'
-import { NcButton, NcCheckboxRadioSwitch, NcLoadingIcon } from '@nextcloud/vue'
+import { NcCheckboxRadioSwitch } from '@nextcloud/vue'
 import SectionTitle from './SectionTitle.vue'
 import MailboxLockedError from '../errors/MailboxLockedError.js'
 import MailboxNotCachedError from '../errors/MailboxNotCachedError.js'
@@ -115,9 +95,7 @@ export default {
 		Error,
 		Loading,
 		LoadingSkeleton,
-		NcButton,
 		NcCheckboxRadioSwitch,
-		NcLoadingIcon,
 		SectionTitle,
 	},
 
@@ -184,8 +162,6 @@ export default {
 			syncedMailboxes: new Set(),
 			skipListTransition: false,
 			selection: [],
-			selectAllMatching: false,
-			loadingAllMatching: false,
 		}
 	},
 
@@ -246,64 +222,6 @@ export default {
 			return this.flatEnvelopeList.length > 0
 				&& this.selection.length === this.flatEnvelopeList.length
 		},
-
-		/**
-		 * Total count of envelopes matching the current filter.
-		 * Falls back to visible count when total is unknown.
-		 */
-		totalEnvelopeCount() {
-			// Use the loaded envelope count — a full count requires a backend API.
-			// When endReached is true, we've loaded all matching envelopes.
-			if (this.endReached) {
-				return this.flatEnvelopeList.length
-			}
-			// Otherwise return loaded count; the banner handles the comparison.
-			return this.envelopes.length
-		},
-
-		/**
-		 * Context-aware label for the select-all checkbox.
-		 * - With active filter: "Select {N} messages matching filter"
-		 * - Without filter, more pages exist: "Select {N} messages on this page"
-		 * - All loaded (no filter or all pages fetched): "Select all {N} messages"
-		 */
-		selectAllLabel() {
-			const count = this.flatEnvelopeList.length
-			const hasFilter = this.searchQuery && this.searchQuery.trim() !== 'match:allof'
-
-			if (hasFilter) {
-				return this.n('mail',
-					'Select {count} matching message',
-					'Select {count} matching messages',
-					count, { count })
-			}
-			if (!this.endReached && count > 0) {
-				return this.n('mail',
-					'Select {count} loaded message',
-					'Select {count} loaded messages',
-					count, { count })
-			}
-			return this.n('mail',
-				'Select {count} message',
-				'Select all {count} messages',
-				count, { count })
-		},
-
-		/**
-		 * Hint shown below the select-all checkbox to give context
-		 * about how many messages are available and how to select more.
-		 */
-		selectAllHint() {
-			if (this.endReached) {
-				return ''
-			}
-			const total = this.totalEnvelopeCount
-			const loaded = this.flatEnvelopeList.length
-			if (total > loaded) {
-				return this.t('mail', 'Scroll for more or use filter for custom selection')
-			}
-			return ''
-		},
 	},
 
 	watch: {
@@ -318,8 +236,6 @@ export default {
 
 		searchQuery() {
 			this.selection = []
-			this.selectAllMatching = false
-			this.loadingAllMatching = false
 			this.loadEnvelopes()
 		},
 
@@ -334,7 +250,6 @@ export default {
 		this.bus.on('delete', this.onDelete)
 		this.bus.on('archive', this.onArchive)
 		this.bus.on('shortcut', this.handleShortcut)
-		this.bus.on('select-all-matching', this.onBusSelectAllMatching)
 		this.loadMailboxInterval = setInterval(this.loadMailbox, 60000)
 	},
 
@@ -357,7 +272,6 @@ export default {
 		this.bus.off('delete', this.onDelete)
 		this.bus.off('archive', this.onArchive)
 		this.bus.off('shortcut', this.handleShortcut)
-		this.bus.off('select-all-matching', this.onBusSelectAllMatching)
 		this.stopInterval()
 	},
 
@@ -812,54 +726,10 @@ export default {
 		},
 
 		/**
-		 * Select all messages matching the current filter across all pages.
-		 * Loads additional pages of envelopes and adds them to the selection.
-		 */
-		async selectAllMatchingAction() {
-			this.loadingAllMatching = true
-			this.selectAllMatching = true
-
-			try {
-				// Load remaining pages until all envelopes are fetched
-				while (!this.endReached) {
-					await this.loadMore()
-				}
-				// Now select all loaded envelopes
-				this.selection = this.flatEnvelopeList.map((e) => e.databaseId)
-			} catch (error) {
-				logger.error('Failed to load all matching envelopes', { error })
-			} finally {
-				this.loadingAllMatching = false
-			}
-		},
-
-		/**
-		 * Handler for the 'select-all-matching' bus event emitted from
-		 * SearchMessages when the user clicks 'Select all matching'.
-		 * Waits for envelopes to finish loading, then selects all.
-		 */
-		async onBusSelectAllMatching() {
-			// Wait for Vue to process the search query change and start loading
-			await this.$nextTick()
-			// Wait for loading to begin (searchQuery watcher triggers loadEnvelopes)
-			while (!this.loadingEnvelopes) {
-				await new Promise((resolve) => setTimeout(resolve, 50))
-			}
-			// Wait for loading to finish
-			while (this.loadingEnvelopes) {
-				await new Promise((resolve) => setTimeout(resolve, 100))
-			}
-			// Now load remaining pages and select all
-			await this.selectAllMatchingAction()
-		},
-
-		/**
 		 * Clear the current selection.
 		 */
 		unselectAll() {
 			this.selection = []
-			this.selectAllMatching = false
-			this.loadingAllMatching = false
 		},
 
 		getLabelForGroup(group) {
@@ -899,43 +769,11 @@ export default {
 .select-all-bar {
 	display: flex;
 	align-items: center;
-	margin-top: 8px;
 	padding: 4px 8px;
 	cursor: pointer;
 	border-bottom: 1px solid var(--color-border);
 	&:hover {
 		background-color: var(--color-background-hover);
-	}
-}
-
-.select-all-loading {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 4px 8px 4px 36px;
-	color: var(--color-text-maxcontrast);
-	font-size: var(--default-font-size);
-	border-bottom: 1px solid var(--color-border);
-}
-
-.select-all-hint {
-	padding: 2px 8px 2px 36px;
-	color: var(--color-text-maxcontrast);
-	font-size: calc(var(--default-font-size) * 0.85);
-	border-bottom: 1px solid var(--color-border);
-}
-
-.select-all-banner {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 8px 12px;
-	background-color: var(--color-primary-light);
-	border-bottom: 1px solid var(--color-border);
-	font-size: var(--default-font-size);
-
-	span {
-		flex: 1;
 	}
 }
 </style>
