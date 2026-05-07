@@ -300,7 +300,7 @@ export default {
 			const total = this.totalEnvelopeCount
 			const loaded = this.flatEnvelopeList.length
 			if (total > loaded) {
-				return this.t('mail', 'Scroll for more or use filter for custom selection')
+				return this.t('mail', 'Scroll down to include more or use filter for custom selection')
 			}
 			return ''
 		},
