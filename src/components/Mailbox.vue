@@ -20,10 +20,14 @@
 		<div v-else>
 			<NcCheckboxRadioSwitch
 				:model-value="allSelected"
+				:disabled="loadingAllMatching"
 				type="checkbox"
 				class="select-all-bar"
 				@update:checked="allSelected ? unselectAll() : selectAll()">
-				{{ n('mail', 'Select {count} message', 'Select all {count} messages', flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
+				<NcLoadingIcon v-if="loadingAllMatching" :size="16" />
+				{{ loadingAllMatching
+					? t('mail', 'Selecting messages…')
+					: n('mail', 'Select {count} message', 'Select all {count} messages', flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
 			</NcCheckboxRadioSwitch>
 			<div
 				v-if="allSelected && !selectAllMatching && flatEnvelopeList.length < totalEnvelopeCount"
@@ -266,6 +270,8 @@ export default {
 
 		searchQuery() {
 			this.selection = []
+			this.selectAllMatching = false
+			this.loadingAllMatching = false
 			this.loadEnvelopes()
 		},
 
