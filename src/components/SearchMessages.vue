@@ -570,24 +570,13 @@ export default {
 		closeSearchModal() {
 			this.moreSearchActions = false
 			this.match = 'allof'
-			// Don't emit if already handling a programmatic close
-			if (this._closingProgrammatically) {
-				return
-			}
-			this.$nextTick(() => {
-				this.sendQueryEvent()
-			})
 		},
 
 		selectAllMatching() {
-			this._closingProgrammatically = true
 			this.match = 'allof'
 			this.moreSearchActions = false
 			this.sendQueryEvent()
 			this.$emit('select-all-matching')
-			this.$nextTick(() => {
-				this._closingProgrammatically = false
-			})
 		},
 
 		sendQueryEvent() {

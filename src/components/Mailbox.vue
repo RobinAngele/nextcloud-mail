@@ -261,6 +261,10 @@ export default {
 			return this.envelopes.length
 		},
 
+		hasFilter() {
+			return this.searchQuery && !/^match:allof\s*$/.test(this.searchQuery.trim())
+		},
+
 		/**
 		 * Context-aware label for the select-all checkbox.
 		 * - With active filter: "Select {N} messages matching filter"
@@ -278,9 +282,6 @@ export default {
 			}
 
 			const count = this.flatEnvelopeList.length
-			// Only consider filter active if query has actual parameters beyond the default "match:allof"
-			const hasFilter = this.searchQuery && !/^match:allof\s*$/.test(this.searchQuery.trim())
-
 			// When messages are selected, show the actual selection count
 			if (this.selectMode) {
 				return this.n('mail',
@@ -289,7 +290,7 @@ export default {
 					this.selection.length, { count: this.selection.length })
 			}
 
-			if (hasFilter) {
+			if (this.hasFilter) {
 				return this.n('mail',
 					'Select {count} matching message',
 					'Select {count} matching messages',
@@ -313,8 +314,7 @@ export default {
 		 */
 		selectAllHint() {
 			if (!this.endReached && this.flatEnvelopeList.length > 0) {
-				const hasFilter = this.searchQuery && !/^match:allof\s*$/.test(this.searchQuery.trim())
-				if (hasFilter) {
+				if (this.hasFilter) {
 					return this.t('mail', 'Scroll down to include more messages or click an avatar circle to select one at a time')
 				}
 				return this.t('mail', 'Scroll down to include more messages, use filter to refine, or click an avatar circle to select one at a time')
@@ -833,41 +833,27 @@ export default {
 		 * Select all messages matching the current filter across all pages.
 		 * Loads additional pages of envelopes and adds them to the selection.
 		 */
-		async selectAllMatchingAction() {
+		/**
+		 * Handler for the 'select-all-matching' bus event.
+		 * Forces a fresh load, then fetches all pages and selects everything.
+		 */
+		async onBusSelectAllMatching() {
 			this.loadingAllMatching = true
 			this.selectAllMatching = true
+			this.endReached = false
+			this.syncedMailboxes.delete(this.mailbox.databaseId + (this.searchQuery ?? ''))
 
 			try {
-				// Load remaining pages until all envelopes are fetched
+				await this.loadEnvelopes()
 				while (!this.endReached) {
 					await this.loadMore()
 				}
-				// Now select all loaded envelopes
 				this.selection = this.flatEnvelopeList.map((e) => e.databaseId)
 			} catch (error) {
 				logger.error('Failed to load all matching envelopes', { error })
 			} finally {
 				this.loadingAllMatching = false
 			}
-		},
-
-		/**
-		 * Handler for the 'select-all-matching' bus event emitted from
-		 * SearchMessages when the user clicks 'Select all matching'.
-		 * Waits for envelopes to finish loading, then selects all.
-		 */
-		async onBusSelectAllMatching() {
-			// Show spinner immediately
-			this.loadingAllMatching = true
-			this.selectAllMatching = true
-
-			// Force a fresh load of the first page with the current query
-			this.endReached = false
-			this.syncedMailboxes.delete(this.mailbox.databaseId + (this.searchQuery ?? ''))
-			await this.loadEnvelopes()
-
-			// Now load remaining pages and select all
-			await this.selectAllMatchingAction()
 		},
 
 		/**
