@@ -271,6 +271,14 @@ export default {
 			const count = this.flatEnvelopeList.length
 			const hasFilter = this.searchQuery && this.searchQuery.trim() !== 'match:allof'
 
+			// When messages are selected, show the actual selection count
+			if (this.selectMode) {
+				return this.n('mail',
+					'{count} selected',
+					'{count} selected',
+					this.selection.length, { count: this.selection.length })
+			}
+
 			if (hasFilter) {
 				return this.n('mail',
 					'Select {count} matching message',
