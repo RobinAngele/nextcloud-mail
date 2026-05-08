@@ -586,7 +586,10 @@ export default {
 			this._localToggleInProgress = true
 			this.setEnvelopeSelected(envelope, selected)
 			this.emitLocalSelection()
-			this._localToggleInProgress = false
+			// Reset after next tick — Vue batches watchers at end of tick
+			this.$nextTick(() => {
+				this._localToggleInProgress = false
+			})
 		},
 
 		onEnvelopeSelectMultiple(envelope, index) {
