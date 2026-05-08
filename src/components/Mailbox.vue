@@ -334,8 +334,8 @@ export default {
 		},
 
 		searchQuery() {
-			// If bus handler is managing state, skip watcher reset
-			if (this.selectAllMatching) {
+			// If bus handler is actively managing state, skip
+			if (this._busHandlerActive) {
 				return
 			}
 			this.selection = []
@@ -842,13 +842,11 @@ export default {
 		 * Forces a fresh load, then fetches all pages and selects everything.
 		 */
 		async onBusSelectAllMatching(query) {
-			// Reset state and apply the new search query first
+			this._busHandlerActive = true
 			this.selection = []
 			this.selectAllMatching = true
 			this.loadingAllMatching = true
 			this.endReached = false
-			// The search-changed event from the parent will update the prop
-			// and trigger the watcher, but we set flags BEFORE that happens
 			this.syncedMailboxes.delete(this.mailbox.databaseId + (query ?? ''))
 
 			try {
@@ -861,6 +859,7 @@ export default {
 				logger.error('Failed to load all matching envelopes', { error })
 			} finally {
 				this.loadingAllMatching = false
+				this._busHandlerActive = false
 			}
 		},
 
