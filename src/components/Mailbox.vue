@@ -397,9 +397,10 @@ export default {
 				})
 		},
 
-		async loadEnvelopes() {
-			logger.debug(`Fetching envelopes for folder ${this.mailbox.databaseId} (${this.searchQuery})`, this.mailbox)
-			if (!this.syncedMailboxes.has(this.mailbox.databaseId + (this.searchQuery ?? ''))) {
+		async loadEnvelopes(queryOverride) {
+			const query = queryOverride ?? this.searchQuery
+			logger.debug(`Fetching envelopes for folder ${this.mailbox.databaseId} (${query})`, this.mailbox)
+			if (!this.syncedMailboxes.has(this.mailbox.databaseId + (query ?? ''))) {
 				// Only trigger skeleton if we didn't sync envelopes yet
 				this.loadingEnvelopes = true
 			} else {
@@ -415,7 +416,7 @@ export default {
 			try {
 				const envelopes = await this.mainStore.fetchEnvelopes({
 					mailboxId: this.mailbox.databaseId,
-					query: this.searchQuery,
+					query,
 					limit: this.initialPageSize,
 				})
 
@@ -850,7 +851,7 @@ export default {
 			this.syncedMailboxes.delete(this.mailbox.databaseId + (query ?? ''))
 
 			try {
-				await this.loadEnvelopes()
+				await this.loadEnvelopes(query)
 				while (!this.endReached) {
 					await this.loadMore()
 				}
