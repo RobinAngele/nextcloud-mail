@@ -570,6 +570,7 @@ export default {
 		closeSearchModal() {
 			this.moreSearchActions = false
 			this.match = 'allof'
+			this.sendQueryEvent()
 		},
 
 		selectAllMatching() {
