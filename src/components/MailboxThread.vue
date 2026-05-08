@@ -604,9 +604,9 @@ export default {
 			this.searchQuery = query
 		},
 
-		onSelectAllMatching() {
-			// Signal the Mailbox component to select all after loading finishes
-			this.bus.emit('select-all-matching')
+		onSelectAllMatching(query) {
+			// Pass the query directly to avoid Vue prop batching issues
+			this.bus.emit('select-all-matching', query)
 		},
 	},
 }

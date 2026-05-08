@@ -837,11 +837,11 @@ export default {
 		 * Handler for the 'select-all-matching' bus event.
 		 * Forces a fresh load, then fetches all pages and selects everything.
 		 */
-		async onBusSelectAllMatching() {
+		async onBusSelectAllMatching(query) {
 			this.loadingAllMatching = true
 			this.selectAllMatching = true
 			this.endReached = false
-			this.syncedMailboxes.delete(this.mailbox.databaseId + (this.searchQuery ?? ''))
+			this.syncedMailboxes.delete(this.mailbox.databaseId + (query ?? ''))
 
 			try {
 				await this.loadEnvelopes()
