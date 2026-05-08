@@ -452,7 +452,7 @@ export default {
 				body: this.searchInMessageBody !== null && this.searchInMessageBody.length > 1 ? this.searchInMessageBody : '',
 				tags: this.selectedTags.length > 0 ? this.selectedTags.map((item) => item.id) : '',
 				flags: this.searchFlags.length > 0 ? this.searchFlags.map((item) => item) : '',
-				mentions: this.mentionsMe,
+				mentions: this.mentionsMe ? this.mentionsMe : '',
 				start: this.prepareStart(),
 				end: this.prepareEnd(),
 			}
