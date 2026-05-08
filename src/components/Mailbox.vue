@@ -294,8 +294,11 @@ export default {
 		 * about how many messages are available and how to select more.
 		 */
 		selectAllHint() {
-			// Show hint when more messages exist beyond the loaded page
 			if (!this.endReached && this.flatEnvelopeList.length > 0) {
+				const hasFilter = this.searchQuery && this.searchQuery.trim() !== 'match:allof'
+				if (hasFilter) {
+					return this.t('mail', 'Scroll down to include more messages or click an avatar circle to select one at a time')
+				}
 				return this.t('mail', 'Scroll down to include more messages, use filter to refine, or click an avatar circle to select one at a time')
 			}
 			return ''
