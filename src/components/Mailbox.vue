@@ -19,11 +19,11 @@
 		<EmptyMailbox v-else-if="!hasMessages" key="empty" />
 		<div v-else>
 			<NcCheckboxRadioSwitch
-				:model-value="allSelected"
+				:model-value="selectMode"
 				:disabled="loadingAllMatching"
 				type="checkbox"
 				class="select-all-bar"
-				@update:checked="allSelected ? unselectAll() : selectAll()">
+				@update:checked="selectMode ? unselectAll() : selectAll()">
 				{{ selectAllLabel }}
 			</NcCheckboxRadioSwitch>
 			<div v-if="loadingAllMatching" class="select-all-loading">
