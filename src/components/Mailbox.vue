@@ -20,17 +20,17 @@
 		<div v-else>
 			<NcCheckboxRadioSwitch
 				:model-value="selectMode"
-				:disabled="loadingAllMatching || loadingEnvelopes"
+				:disabled="loadingAllMatching"
 				type="checkbox"
 				class="select-all-bar"
 				@update:checked="selectMode ? unselectAll() : selectAll()">
 				{{ selectAllLabel }}
 			</NcCheckboxRadioSwitch>
-			<div v-if="loadingAllMatching || loadingEnvelopes" class="select-all-loading">
+			<div v-if="loadingAllMatching" class="select-all-loading">
 				<NcLoadingIcon :size="16" />
-				<span>{{ t('mail', 'Loading…') }}</span>
+				<span>{{ t('mail', 'Selecting messages…') }}</span>
 			</div>
-			<div v-if="selectAllHint && !loadingAllMatching && !loadingEnvelopes && !allSelected" class="select-all-hint">
+			<div v-if="selectAllHint && !loadingAllMatching && !allSelected" class="select-all-hint">
 				{{ selectAllHint }}
 			</div>
 			<div
@@ -268,8 +268,12 @@ export default {
 		 * - All loaded (no filter or all pages fetched): "Select all {N} messages"
 		 */
 		selectAllLabel() {
-			// During any loading, show a loading indicator
-			if (this.loadingAllMatching || this.loadingEnvelopes) {
+			// During mass loading, show a loading indicator
+			if (this.loadingAllMatching) {
+				return this.t('mail', 'Selecting messages…')
+			}
+			// During normal loading, show a temporary label
+			if (this.loadingEnvelopes) {
 				return this.t('mail', 'Loading…')
 			}
 
