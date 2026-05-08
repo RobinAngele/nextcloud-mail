@@ -372,6 +372,12 @@ export default {
 	watch: {
 		selection: {
 			handler(newSelection) {
+				// Skip sync during local toggle to avoid race condition
+				// where the watcher overwrites flags.selected set by
+				// a local click before emitLocalSelection reads it.
+				if (this._localToggleInProgress) {
+					return
+				}
 				// Sync flags.selected with the global selection prop.
 				// This ensures checkboxes stay correct when another
 				// EnvelopeList instance changes the selection (e.g. shift-click
@@ -577,8 +583,10 @@ export default {
 
 		onEnvelopeSelectToggle(envelope, index, selected) {
 			this.lastToggledIndex = index
+			this._localToggleInProgress = true
 			this.setEnvelopeSelected(envelope, selected)
 			this.emitLocalSelection()
+			this._localToggleInProgress = false
 		},
 
 		onEnvelopeSelectMultiple(envelope, index) {
