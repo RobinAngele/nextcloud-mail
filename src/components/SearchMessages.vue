@@ -576,7 +576,9 @@ export default {
 			this.match = 'allof'
 			this.moreSearchActions = false
 			this.sendQueryEvent()
-			this.$emit('select-all-matching')
+			this.$nextTick(() => {
+				this.$emit('select-all-matching')
+			})
 		},
 
 		sendQueryEvent() {
