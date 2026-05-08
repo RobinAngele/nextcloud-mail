@@ -585,7 +585,9 @@ export default {
 			this.moreSearchActions = false
 			this.sendQueryEvent()
 			this.$emit('select-all-matching')
-			this._closingProgrammatically = false
+			this.$nextTick(() => {
+				this._closingProgrammatically = false
+			})
 		},
 
 		sendQueryEvent() {
