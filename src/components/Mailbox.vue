@@ -275,7 +275,7 @@ export default {
 
 			const count = this.flatEnvelopeList.length
 			// Only consider filter active if query has actual parameters beyond the default "match:allof"
-			const hasFilter = this.searchQuery && this.searchQuery.trim().length > 12
+			const hasFilter = this.searchQuery && !/^match:allof\s*$/.test(this.searchQuery.trim())
 
 			// When messages are selected, show the actual selection count
 			if (this.selectMode) {
@@ -309,7 +309,7 @@ export default {
 		 */
 		selectAllHint() {
 			if (!this.endReached && this.flatEnvelopeList.length > 0) {
-				const hasFilter = this.searchQuery && this.searchQuery.trim().length > 12
+				const hasFilter = this.searchQuery && !/^match:allof\s*$/.test(this.searchQuery.trim())
 				if (hasFilter) {
 					return this.t('mail', 'Scroll down to include more messages or click an avatar circle to select one at a time')
 				}
