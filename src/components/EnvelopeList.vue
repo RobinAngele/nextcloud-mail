@@ -391,6 +391,10 @@ export default {
 		},
 
 		sortedEnvelops(newVal, oldVal) {
+			// Skip if a local toggle is in progress to avoid race conditions
+			if (this._localToggleInProgress) {
+				return
+			}
 			// Unselect vanished envelopes by emitting cleaned selection
 			const newIds = new Set(newVal.map((env) => env.databaseId))
 			const cleanedSelection = this.selection.filter((id) => newIds.has(id))
