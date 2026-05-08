@@ -20,17 +20,17 @@
 		<div v-else>
 			<NcCheckboxRadioSwitch
 				:model-value="selectMode"
-				:disabled="loadingAllMatching"
+				:disabled="loadingAllMatching || loadingEnvelopes"
 				type="checkbox"
 				class="select-all-bar"
 				@update:checked="selectMode ? unselectAll() : selectAll()">
 				{{ selectAllLabel }}
 			</NcCheckboxRadioSwitch>
-			<div v-if="loadingAllMatching" class="select-all-loading">
+			<div v-if="loadingAllMatching || loadingEnvelopes" class="select-all-loading">
 				<NcLoadingIcon :size="16" />
-				<span>{{ t('mail', 'Selecting messages…') }}</span>
+				<span>{{ t('mail', 'Loading…') }}</span>
 			</div>
-			<div v-if="selectAllHint && !loadingAllMatching && !allSelected" class="select-all-hint">
+			<div v-if="selectAllHint && !loadingAllMatching && !loadingEnvelopes && !allSelected" class="select-all-hint">
 				{{ selectAllHint }}
 			</div>
 			<div
@@ -268,9 +268,9 @@ export default {
 		 * - All loaded (no filter or all pages fetched): "Select all {N} messages"
 		 */
 		selectAllLabel() {
-			// During mass loading, override all other states
-			if (this.loadingAllMatching) {
-				return this.t('mail', 'Selecting messages…')
+			// During any loading, show a loading indicator
+			if (this.loadingAllMatching || this.loadingEnvelopes) {
+				return this.t('mail', 'Loading…')
 			}
 
 			const count = this.flatEnvelopeList.length
