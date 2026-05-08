@@ -26,7 +26,7 @@
 		:is-important="isImportant"
 		@click.exact="onClick"
 		@click.ctrl.exact.prevent="toggleSelected"
-		@click.shift.exact.prevent="onSelectMultiple"
+		@click.shift.exact.prevent="onSelectMultiple($event)"
 		@delete="onDelete"
 		@toggle-important="onToggleImportant"
 		@toggle-seen="onToggleSeen"
@@ -78,7 +78,7 @@
 				<template v-else>
 					<div
 						@click.stop.exact.prevent="toggleSelected"
-						@click.shift.exact.prevent="onSelectMultiple">
+						@click.shift.exact.prevent="onSelectMultiple($event)">
 						<template v-if="hoveringAvatar || selected">
 							<CheckIcon
 								:size="28"
@@ -1129,7 +1129,10 @@ export default {
 			}
 		},
 
-		onSelectMultiple() {
+		onSelectMultiple(event) {
+			if (!event.shiftKey) {
+				return
+			}
 			this.$emit('select-multiple')
 		},
 
