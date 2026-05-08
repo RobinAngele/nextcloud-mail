@@ -268,6 +268,11 @@ export default {
 		 * - All loaded (no filter or all pages fetched): "Select all {N} messages"
 		 */
 		selectAllLabel() {
+			// During mass loading, override all other states
+			if (this.loadingAllMatching) {
+				return this.t('mail', 'Selecting messages…')
+			}
+
 			const count = this.flatEnvelopeList.length
 			const hasFilter = this.searchQuery && this.searchQuery.trim() !== 'match:allof'
 
