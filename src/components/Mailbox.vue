@@ -333,6 +333,7 @@ export default {
 			this.selection = []
 			this.selectAllMatching = false
 			this.loadingAllMatching = false
+			this.endReached = false
 			this.loadEnvelopes()
 		},
 
