@@ -23,7 +23,7 @@
 				:disabled="loadingAllMatching"
 				type="checkbox"
 				class="select-all-bar"
-				@update:checked="selectMode ? unselectAll() : selectAll()">
+				@update:model-value="selectMode ? unselectAll() : selectAll()">
 				{{ selectAllLabel }}
 			</NcCheckboxRadioSwitch>
 			<div v-if="loadingAllMatching" class="select-all-loading">
