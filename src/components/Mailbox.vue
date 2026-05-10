@@ -307,7 +307,7 @@ export default {
 					'Select {count} matching messages',
 					count, { count })
 			}
-			if (!this.endReached && count > 0) {
+			if (!this.endReached && count > 0 && !this.isPriorityInbox) {
 				return this.n('mail',
 					'Select {count} loaded message',
 					'Select {count} loaded messages',
