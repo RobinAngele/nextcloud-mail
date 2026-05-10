@@ -43,17 +43,17 @@
 				v-if="allSelected && !selectAllMatching && flatEnvelopeList.length < totalEnvelopeCount && !isPriorityInbox"
 				class="select-all-banner">
 				<span v-if="hasFilter">{{ n('mail',
-					'All {visible} message on this page selected. Select all {total} matching this filter?',
-					'All {visible} messages on this page selected. Select all {total} matching this filter?',
-					totalEnvelopeCount,
-					{ visible: flatEnvelopeList.length, total: totalEnvelopeCount }) }}</span>
+					'All {visible} message on this page selected. Select all messages matching this filter?',
+					'All {visible} messages on this page selected. Select all messages matching this filter?',
+					flatEnvelopeList.length,
+					{ visible: flatEnvelopeList.length }) }}</span>
 				<span v-else>{{ n('mail',
-					'All {visible} message on this page selected. Select all {total} messages in this folder?',
-					'All {visible} messages on this page selected. Select all {total} messages in this folder?',
-					totalEnvelopeCount,
-					{ visible: flatEnvelopeList.length, total: totalEnvelopeCount }) }}</span>
+					'All {visible} message on this page selected. Select all messages in this folder?',
+					'All {visible} messages on this page selected. Select all messages in this folder?',
+					flatEnvelopeList.length,
+					{ visible: flatEnvelopeList.length }) }}</span>
 				<NcButton type="primary" @click="selectAllMatchingAction">
-					{{ n('mail', 'Select all {count} message', 'Select all {count} messages', totalEnvelopeCount, { count: totalEnvelopeCount }) }}
+					{{ t('mail', 'Select all matching messages') }}
 				</NcButton>
 			</div>
 			<template v-if="hasGroupedEnvelopes && !isPriorityInbox">
