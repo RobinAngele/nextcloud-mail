@@ -568,6 +568,9 @@ export default {
 		},
 
 		closeSearchModal() {
+			if (!this.moreSearchActions) {
+				return
+			}
 			this.moreSearchActions = false
 			this.match = 'allof'
 			this.sendQueryEvent()
@@ -576,7 +579,7 @@ export default {
 		selectAllMatching() {
 			this.match = 'allof'
 			this.moreSearchActions = false
-			this.sendQueryEvent()
+			// No sendQueryEvent() — bus handler manages loading to avoid watcher race
 			this.$emit('select-all-matching', this.searchQuery)
 		},
 

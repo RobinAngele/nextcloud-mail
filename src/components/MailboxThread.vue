@@ -605,8 +605,8 @@ export default {
 		},
 
 		onSelectAllMatching(query) {
-			// Pass the query directly to avoid Vue prop batching issues
-			this.bus.emit('select-all-matching', query)
+			this.searchQuery = query
+			this.bus.emit('select-all-matching')
 		},
 	},
 }

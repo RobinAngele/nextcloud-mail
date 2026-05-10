@@ -30,16 +30,26 @@
 				<NcLoadingIcon :size="16" />
 				<span>{{ t('mail', 'Selecting messages…') }}</span>
 			</div>
-			<div v-if="selectAllHint && !loadingAllMatching && !allSelected" class="select-all-hint">
+			<div v-if="selectAllHint && !loadingAllMatching && !allSelected && !selectionLimitReached" class="select-all-hint">
 				{{ selectAllHint }}
 			</div>
+			<div v-if="selectionLimitReached" class="select-all-hint select-all-limit-warning">
+				{{ n('mail',
+					'Too many messages — only the first {count} could be selected.',
+					'Too many messages — only the first {count} could be selected.',
+					flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
+			</div>
 			<div
-				v-if="allSelected && !selectAllMatching && flatEnvelopeList.length < totalEnvelopeCount"
+				v-if="allSelected && !selectAllMatching && flatEnvelopeList.length < totalEnvelopeCount && !isPriorityInbox"
 				class="select-all-banner">
-				<NcLoadingIcon v-if="loadingAllMatching" :size="16" />
-				<span>{{ n('mail',
+				<span v-if="hasFilter">{{ n('mail',
 					'All {visible} message on this page selected. Select all {total} matching this filter?',
 					'All {visible} messages on this page selected. Select all {total} matching this filter?',
+					totalEnvelopeCount,
+					{ visible: flatEnvelopeList.length, total: totalEnvelopeCount }) }}</span>
+				<span v-else>{{ n('mail',
+					'All {visible} message on this page selected. Select all {total} messages in this folder?',
+					'All {visible} messages on this page selected. Select all {total} messages in this folder?',
 					totalEnvelopeCount,
 					{ visible: flatEnvelopeList.length, total: totalEnvelopeCount }) }}</span>
 				<NcButton type="primary" @click="selectAllMatchingAction">
@@ -85,7 +95,7 @@
 </template>
 
 <script>
-import { showError, showWarning } from '@nextcloud/dialogs'
+import { showError, showInfo, showWarning } from '@nextcloud/dialogs'
 import { mapStores } from 'pinia'
 import { findIndex, propEq } from 'ramda'
 import EmptyMailbox from './EmptyMailbox.vue'
@@ -105,6 +115,10 @@ import logger from '../logger.js'
 import useMainStore from '../store/mainStore.js'
 import { mailboxHasRights } from '../util/acl.js'
 import { wait } from '../util/wait.js'
+
+// Hard cap: unified mailboxes fan out to N_accounts sub-fetches per page, so
+// 500 messages can mean hundreds of API calls. Beyond this, renderer runs OOM.
+const MAX_SELECT_MESSAGES = 500
 
 export default {
 	name: 'Mailbox',
@@ -186,6 +200,7 @@ export default {
 			selection: [],
 			selectAllMatching: false,
 			loadingAllMatching: false,
+			selectionLimitReached: false,
 		}
 	},
 
@@ -232,16 +247,10 @@ export default {
 			return this.envelopesToShow
 		},
 
-		/**
-		 * Whether selection mode is active (at least one envelope selected).
-		 */
 		selectMode() {
 			return this.selection.length > 0
 		},
 
-		/**
-		 * Whether all visible envelopes are currently selected.
-		 */
 		allSelected() {
 			return this.flatEnvelopeList.length > 0
 				&& this.selection.length === this.flatEnvelopeList.length
@@ -252,17 +261,23 @@ export default {
 		 * Falls back to visible count when total is unknown.
 		 */
 		totalEnvelopeCount() {
-			// Use the loaded envelope count — a full count requires a backend API.
-			// When endReached is true, we've loaded all matching envelopes.
+			// endReached means all matching envelopes are loaded — exact count is known
 			if (this.endReached) {
 				return this.flatEnvelopeList.length
 			}
-			// Otherwise return loaded count; the banner handles the comparison.
 			return this.envelopes.length
 		},
 
 		hasFilter() {
-			return this.searchQuery && !/^match:allof\s*$/.test(this.searchQuery.trim())
+			if (!this.searchQuery) {
+				return false
+			}
+			const trimmed = this.searchQuery.trim()
+			// Priority inbox uses system queries that should not count as user filters
+			if (trimmed === 'is:pi-important' || trimmed === 'is:pi-other') {
+				return false
+			}
+			return !/^match:allof\s*$/.test(trimmed)
 		},
 
 		/**
@@ -272,13 +287,8 @@ export default {
 		 * - All loaded (no filter or all pages fetched): "Select all {N} messages"
 		 */
 		selectAllLabel() {
-			// During mass loading, show a loading indicator
 			if (this.loadingAllMatching) {
 				return this.t('mail', 'Selecting messages…')
-			}
-			// During normal loading, show a temporary label
-			if (this.loadingEnvelopes) {
-				return this.t('mail', 'Loading…')
 			}
 
 			const count = this.flatEnvelopeList.length
@@ -324,29 +334,48 @@ export default {
 	},
 
 	watch: {
+		selection(newVal, oldVal) {
+			// Notify sibling sections (Priority inbox) when selection becomes non-empty.
+			// Each section has an independent toolbar, so cross-section selection
+			// is misleading — enforce mutual exclusion via the shared bus.
+			if (newVal.length > 0 && oldVal.length === 0 && !this.loadingAllMatching) {
+				this.bus.emit('section-selected', this.searchQuery)
+			}
+		},
+
 		mailbox() {
 			this.selection = []
+			this.selectAllMatching = false
+			this.loadingAllMatching = false
+			this.selectionLimitReached = false
+			this.endReached = false
+			this.expanded = false
 			this.loadEnvelopes()
 				.then(() => {
-					logger.debug(`syncing mailbox ${this.mailbox.databaseId} (${this.query}) after folder change`)
+					logger.debug(`syncing mailbox ${this.mailbox.databaseId} (${this.searchQuery}) after folder change`)
 					this.sync(false)
 				})
 		},
 
 		searchQuery() {
-			// If bus handler is actively managing state, skip
-			if (this._busHandlerActive) {
+			if (this.loadingAllMatching) {
 				return
 			}
 			this.selection = []
 			this.selectAllMatching = false
 			this.loadingAllMatching = false
+			this.selectionLimitReached = false
 			this.endReached = false
 			this.loadEnvelopes()
 		},
 
 		sortOrder() {
 			this.selection = []
+			this.selectAllMatching = false
+			this.loadingAllMatching = false
+			this.selectionLimitReached = false
+			this.endReached = false
+			this.expanded = false
 			this.loadEnvelopes()
 		},
 	},
@@ -354,9 +383,9 @@ export default {
 	created() {
 		this.bus.on('load-more', this.onScroll)
 		this.bus.on('delete', this.onDelete)
-		this.bus.on('archive', this.onArchive)
 		this.bus.on('shortcut', this.handleShortcut)
 		this.bus.on('select-all-matching', this.onBusSelectAllMatching)
+		this.bus.on('section-selected', this.onBusSectionSelected)
 		this.loadMailboxInterval = setInterval(this.loadMailbox, 60000)
 	},
 
@@ -377,9 +406,9 @@ export default {
 	unmounted() {
 		this.bus.off('load-more', this.onScroll)
 		this.bus.off('delete', this.onDelete)
-		this.bus.off('archive', this.onArchive)
 		this.bus.off('shortcut', this.handleShortcut)
 		this.bus.off('select-all-matching', this.onBusSelectAllMatching)
+		this.bus.off('section-selected', this.onBusSectionSelected)
 		this.stopInterval()
 	},
 
@@ -388,7 +417,7 @@ export default {
 			this.loadingCacheInitialization = true
 			this.error = false
 
-			logger.debug(`syncing folder ${this.mailbox.databaseId} (${this.query}) during cache initalization`)
+			logger.debug(`syncing folder ${this.mailbox.databaseId} (${this.searchQuery}) during cache initalization`)
 			this.sync(true)
 				.then(() => {
 					this.loadingCacheInitialization = false
@@ -400,7 +429,7 @@ export default {
 		async loadEnvelopes(queryOverride) {
 			const query = queryOverride ?? this.searchQuery
 			logger.debug(`Fetching envelopes for folder ${this.mailbox.databaseId} (${query})`, this.mailbox)
-			if (!this.syncedMailboxes.has(this.mailbox.databaseId + (query ?? ''))) {
+			if (!this.loadingAllMatching && !this.syncedMailboxes.has(this.mailbox.databaseId + (query ?? ''))) {
 				// Only trigger skeleton if we didn't sync envelopes yet
 				this.loadingEnvelopes = true
 			} else {
@@ -422,15 +451,15 @@ export default {
 
 				logger.debug(envelopes.length + ' envelopes fetched', { envelopes })
 
-				this.syncedMailboxes.add(this.mailbox.databaseId + (this.searchQuery ?? ''))
+				this.syncedMailboxes.add(this.mailbox.databaseId + (query ?? ''))
 				this.loadingEnvelopes = false
 			} catch (error) {
 				await matchError(error, {
 					[MailboxLockedError.getName()]: async (error) => {
 						logger.info(`Mailbox ${this.mailbox.databaseId} (${this.searchQuery}) is locked`, { error })
 						await wait(15 * 1000)
-						// Keep trying
-						await this.loadEnvelopes()
+						// Keep trying with the same query override so the cache key stays consistent
+						await this.loadEnvelopes(queryOverride)
 					},
 					[MailboxNotCachedError.getName()]: async (error) => {
 						logger.info(`Mailbox ${this.mailbox.databaseId} (${this.searchQuery}) not cached. Triggering initialization`, { error })
@@ -452,11 +481,12 @@ export default {
 			}
 		},
 
-		async loadMore() {
+		async loadMore(queryOverride) {
+			const query = queryOverride ?? this.searchQuery
 			if (!this.expanded && this.envelopesToShow.length < this.envelopes.length) {
 				logger.debug('expanding envelope list')
 				this.expanded = true
-				return
+				return true
 			}
 
 			logger.debug('fetching next envelope page')
@@ -465,14 +495,18 @@ export default {
 			try {
 				const envelopes = await this.mainStore.fetchNextEnvelopePage({
 					mailboxId: this.mailbox.databaseId,
-					query: this.searchQuery,
+					query,
 				})
 				if (envelopes.length === 0) {
 					logger.info('envelope list end reached')
 					this.endReached = true
+				} else {
+					this.expanded = true
 				}
+				return true
 			} catch (error) {
 				logger.error('could not fetch next envelope page', { error })
+				return false
 			} finally {
 				this.loadingMore = false
 			}
@@ -795,9 +829,10 @@ export default {
 		 */
 		onUpdateSelection(childSelection, childEnvelopes) {
 			const childIds = new Set(childEnvelopes.map((e) => e.databaseId))
-			// Remove all IDs from this child's scope, then add the new selection
-			this.selection = this.selection.filter((id) => !childIds.has(id))
-			this.selection.push(...childSelection)
+			this.selection = [
+				...this.selection.filter((id) => !childIds.has(id)),
+				...childSelection,
+			]
 		},
 
 		/**
@@ -827,50 +862,73 @@ export default {
 			}
 		},
 
-		/**
-		 * Select all visible envelopes.
-		 */
 		selectAll() {
 			this.selection = this.flatEnvelopeList.map((e) => e.databaseId)
 		},
 
 		/**
-		 * Select all messages matching the current filter across all pages.
-		 * Loads additional pages of envelopes and adds them to the selection.
+		 * Triggered by the in-page banner button to select all messages in the
+		 * current folder/filter without going through the search modal.
 		 */
+		selectAllMatchingAction() {
+			this.onBusSelectAllMatching()
+		},
+
 		/**
 		 * Handler for the 'select-all-matching' bus event.
 		 * Forces a fresh load, then fetches all pages and selects everything.
 		 */
-		async onBusSelectAllMatching(query) {
-			this._busHandlerActive = true
+		async onBusSelectAllMatching() {
+			// Set flag before yield to block the searchQuery watcher
+			this.loadingAllMatching = true
+			// appendToSearch() props lag one render tick — wait for section-filtered searchQuery
+			await this.$nextTick()
+			const effectiveQuery = this.searchQuery
+
 			this.selection = []
 			this.selectAllMatching = true
-			this.loadingAllMatching = true
+			this.selectionLimitReached = false
 			this.endReached = false
-			this.syncedMailboxes.delete(this.mailbox.databaseId + (query ?? ''))
+			this.expanded = false
+			this.syncedMailboxes.delete(this.mailbox.databaseId + (effectiveQuery ?? ''))
 
 			try {
-				await this.loadEnvelopes(query)
-				while (!this.endReached) {
-					await this.loadMore()
+				await this.loadEnvelopes(effectiveQuery)
+				while (!this.endReached && this.flatEnvelopeList.length < MAX_SELECT_MESSAGES) {
+					if (!await this.loadMore(effectiveQuery)) {
+						break
+					}
+				}
+				if (!this.endReached && this.flatEnvelopeList.length >= MAX_SELECT_MESSAGES) {
+					this.selectionLimitReached = true
+					logger.warn(`Mass select capped at ${MAX_SELECT_MESSAGES} messages (${this.flatEnvelopeList.length} loaded) to prevent OOM`)
 				}
 				this.selection = this.flatEnvelopeList.map((e) => e.databaseId)
 			} catch (error) {
 				logger.error('Failed to load all matching envelopes', { error })
 			} finally {
 				this.loadingAllMatching = false
-				this._busHandlerActive = false
 			}
 		},
 
-		/**
-		 * Clear the current selection.
-		 */
+		onBusSectionSelected(activeQuery) {
+			// Another section on the same bus became active — clear our selection.
+			// Each section has its own independent toolbar so cross-section selection
+			// cannot be acted upon in a single operation.
+			if (activeQuery !== this.searchQuery && this.selection.length > 0) {
+				this.selection = []
+				this.selectAllMatching = false
+				this.selectionLimitReached = false
+				showInfo(t('mail', 'Previous section selection was cleared'))
+			}
+		},
+
 		unselectAll() {
 			this.selection = []
 			this.selectAllMatching = false
 			this.loadingAllMatching = false
+			this.selectionLimitReached = false
+			this.expanded = false
 		},
 
 		getLabelForGroup(group) {
@@ -936,10 +994,15 @@ export default {
 	border-bottom: 1px solid var(--color-border);
 }
 
+.select-all-limit-warning {
+	color: var(--color-warning);
+}
+
 .select-all-banner {
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	flex-wrap: wrap;
+	gap: 8px;
 	padding: 8px 12px;
 	background-color: var(--color-primary-light);
 	border-bottom: 1px solid var(--color-border);
@@ -947,6 +1010,7 @@ export default {
 
 	span {
 		flex: 1;
+		min-width: 120px;
 	}
 }
 </style>
