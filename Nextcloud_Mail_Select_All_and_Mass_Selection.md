@@ -43,7 +43,7 @@ Three open issues had been requesting this for years:
 
 ### Data flow before
 
-```
+```text
 Mailbox
   └── EnvelopeList (owns `selection[]` locally)
         └── Envelope × N (each has `flags.selected`)
@@ -55,7 +55,7 @@ cross group boundaries.
 
 ### Data flow after
 
-```
+```text
 Mailbox (owns `selection[]` globally)
   ├── Select-all checkbox
   ├── EnvelopeList (receives `selection` as prop)
@@ -167,12 +167,11 @@ from `@nextcloud/vue`:
 
 ```vue
 <NcCheckboxRadioSwitch
-    :model-value="false"
+    :model-value="selectMode"
     type="checkbox"
     class="select-all-bar"
-    @update:checked="selectAll">
-    {{ n('mail', 'Select {count} message', 'Select all {count} messages',
-         flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
+    @update:model-value="selectMode ? unselectAll() : selectAll()">
+    {{ selectAllLabel }}
 </NcCheckboxRadioSwitch>
 ```
 
@@ -363,10 +362,10 @@ A separate row below the checkbox shows the loading indicator:
 
 ```vue
 <NcCheckboxRadioSwitch
-    :model-value="allSelected"
-    :disabled="loadingAllMatching"     <!-- prevents double-trigger -->
+    :model-value="selectMode"
+    :disabled="loadingAllMatching"
     type="checkbox"
-    @update:checked="allSelected ? unselectAll() : selectAll()">
+    @update:model-value="selectMode ? unselectAll() : selectAll()">
     {{ selectAllLabel }}
 </NcCheckboxRadioSwitch>
 

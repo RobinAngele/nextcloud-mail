@@ -242,10 +242,14 @@ export default {
 		 * Used for shift-click range selection and Select All.
 		 */
 		flatEnvelopeList() {
+			const sortVisible = (items) => this.sortOrder === 'oldest'
+				? [...items].sort((a, b) => (a.dateInt < b.dateInt ? -1 : 1))
+				: items
+
 			if (this.hasGroupedEnvelopes) {
-				return this.groupEnvelopes.flatMap(([, group]) => group)
+				return this.groupEnvelopes.flatMap(([, group]) => sortVisible(group))
 			}
-			return this.envelopesToShow
+			return sortVisible(this.envelopesToShow)
 		},
 
 		selectMode() {
@@ -830,10 +834,11 @@ export default {
 		 */
 		onUpdateSelection(childSelection, childEnvelopes) {
 			const childIds = new Set(childEnvelopes.map((e) => e.databaseId))
+			const visibleIds = new Set(this.flatEnvelopeList.map((e) => e.databaseId))
 			this.selection = [
 				...this.selection.filter((id) => !childIds.has(id)),
 				...childSelection,
-			]
+			].filter((id) => visibleIds.has(id))
 		},
 
 		/**
@@ -905,6 +910,9 @@ export default {
 					logger.warn(`Mass select capped at ${MAX_SELECT_MESSAGES} messages (${this.flatEnvelopeList.length} loaded) to prevent OOM`)
 				}
 				this.selection = this.flatEnvelopeList.map((e) => e.databaseId)
+				if (this.selection.length > 0) {
+					this.bus.emit('section-selected', effectiveQuery)
+				}
 			} catch (error) {
 				logger.error('Failed to load all matching envelopes', { error })
 			} finally {
