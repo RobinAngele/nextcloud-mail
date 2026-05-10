@@ -283,9 +283,9 @@ export default {
 
 		/**
 		 * Context-aware label for the select-all checkbox.
-		 * - With active filter: "Select {N} messages matching filter"
-		 * - Without filter, more pages exist: "Select {N} messages on this page"
-		 * - All loaded (no filter or all pages fetched): "Select all {N} messages"
+		 * - With active filter: "Select {N} matching messages"
+		 * - Without filter, more pages exist (non-Priority inbox): "Select {N} loaded messages"
+		 * - All loaded, or Priority inbox (no filter): "Select all {N} messages"
 		 */
 		selectAllLabel() {
 			if (this.loadingAllMatching) {
