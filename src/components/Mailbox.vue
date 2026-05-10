@@ -371,6 +371,7 @@ export default {
 			this.loadingAllMatching = false
 			this.selectionLimitReached = false
 			this.endReached = false
+			this.expanded = false
 			this.loadEnvelopes()
 		},
 
