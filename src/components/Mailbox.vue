@@ -900,16 +900,23 @@ export default {
 
 			try {
 				await this.loadEnvelopes(effectiveQuery)
+				let loadFailed = false
 				while (!this.endReached && this.flatEnvelopeList.length < MAX_SELECT_MESSAGES) {
 					if (!await this.loadMore(effectiveQuery)) {
+						loadFailed = true
 						break
 					}
+				}
+				if (loadFailed) {
+					this.selectAllMatching = false
+					logger.error('Mass select aborted: a page failed to load')
+					return
 				}
 				if (!this.endReached && this.flatEnvelopeList.length >= MAX_SELECT_MESSAGES) {
 					this.selectionLimitReached = true
 					logger.warn(`Mass select capped at ${MAX_SELECT_MESSAGES} messages (${this.flatEnvelopeList.length} loaded) to prevent OOM`)
 				}
-				this.selection = this.flatEnvelopeList.map((e) => e.databaseId)
+				this.selection = this.flatEnvelopeList.slice(0, MAX_SELECT_MESSAGES).map((e) => e.databaseId)
 				if (this.selection.length > 0) {
 					this.bus.emit('section-selected', effectiveQuery)
 				}
