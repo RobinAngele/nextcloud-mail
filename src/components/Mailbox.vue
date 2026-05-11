@@ -411,7 +411,7 @@ export default {
 			this.loadingCacheInitialization = true
 			this.error = false
 
-			logger.debug(`syncing folder ${this.mailbox.databaseId} (${this.searchQuery}) during cache initalization`)
+			logger.debug(`syncing folder ${this.mailbox.databaseId} (${this.searchQuery}) during cache initialization`)
 			this.sync(true)
 				.then(() => {
 					this.loadingCacheInitialization = false
@@ -952,6 +952,9 @@ export default {
 			this.selectAllMatching = false
 			this.loadingAllMatching = false
 			this.selectionLimitReached = false
+			// Intentional: collapse back to the initial page so the user starts
+			// fresh after clearing selection (avoids a full loaded list with
+			// nothing selected, which looks broken on re-entry).
 			this.expanded = false
 		},
 
