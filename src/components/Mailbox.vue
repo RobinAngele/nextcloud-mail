@@ -836,6 +836,8 @@ export default {
 		onUpdateSelection(childSelection, childEnvelopes) {
 			const childIds = new Set(childEnvelopes.map((e) => e.databaseId))
 			const visibleIds = new Set(this.flatEnvelopeList.map((e) => e.databaseId))
+			// User manually changed selection — re-enable mutual exclusion signalling.
+			this.selectAllMatching = false
 			this.selection = [
 				...this.selection.filter((id) => !childIds.has(id)),
 				...childSelection,
@@ -858,6 +860,8 @@ export default {
 					.slice(start, end + 1)
 					.map((e) => e.databaseId),
 			)
+			// User manually shift-clicked — re-enable mutual exclusion signalling.
+			this.selectAllMatching = false
 			if (deselect) {
 				this.selection = this.selection.filter((id) => !idsInRange.has(id))
 			} else {
@@ -942,10 +946,16 @@ export default {
 			// Each section has its own independent toolbar so cross-section selection
 			// cannot be acted upon in a single operation.
 			if (activeQuery !== this.searchQuery && this.selection.length > 0) {
+				// Only notify the user when their own manual selection is cleared.
+				// A programmatic mass-select (selectAllMatching = true) is silently
+				// superseded — showing a toast for it would be confusing and noisy.
+				const wasUserInitiated = !this.selectAllMatching
 				this.selection = []
 				this.selectAllMatching = false
 				this.selectionLimitReached = false
-				showInfo(t('mail', 'Previous section selection was cleared'))
+				if (wasUserInitiated) {
+					showInfo(t('mail', 'Previous section selection was cleared'))
+				}
 			}
 		},
 
