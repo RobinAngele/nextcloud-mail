@@ -40,7 +40,7 @@
 					flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
 			</div>
 			<div
-				v-if="allSelected && !selectAllMatching && flatEnvelopeList.length < totalEnvelopeCount && !isPriorityInbox"
+				v-if="allSelected && !selectAllMatching && !endReached && !isPriorityInbox"
 				class="select-all-banner">
 				<span v-if="hasFilter">{{ n('mail',
 					'All {visible} message on this page selected. Select all messages matching this filter?',
@@ -261,18 +261,6 @@ export default {
 				&& this.selection.length === this.flatEnvelopeList.length
 		},
 
-		/**
-		 * Total count of envelopes matching the current filter.
-		 * Falls back to visible count when total is unknown.
-		 */
-		totalEnvelopeCount() {
-			// endReached means all matching envelopes are loaded — exact count is known
-			if (this.endReached) {
-				return this.flatEnvelopeList.length
-			}
-			return this.envelopes.length
-		},
-
 		hasFilter() {
 			if (!this.searchQuery) {
 				return false
@@ -328,13 +316,13 @@ export default {
 		 * about how many messages are available and how to select more.
 		 */
 		selectAllHint() {
-			if (!this.endReached && this.flatEnvelopeList.length > 0) {
-				if (this.hasFilter) {
-					return this.t('mail', 'Scroll down to include more messages or click an avatar circle to select one at a time')
-				}
-				return this.t('mail', 'Scroll down to include more messages, use filter to refine, or click an avatar circle to select one at a time')
+			if (this.isPriorityInbox || this.endReached || this.flatEnvelopeList.length === 0) {
+				return ''
 			}
-			return ''
+			if (this.hasFilter) {
+				return this.t('mail', 'Scroll down to include more messages or click an avatar circle to select one at a time')
+			}
+			return this.t('mail', 'Scroll down to include more messages, use filter to refine, or click an avatar circle to select one at a time')
 		},
 	},
 
