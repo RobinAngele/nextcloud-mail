@@ -341,9 +341,9 @@ export default {
 	watch: {
 		selection(newVal, oldVal) {
 			// Notify sibling sections (Priority inbox) when selection becomes non-empty.
-			// Each section has an independent toolbar, so cross-section selection
-			// is misleading — enforce mutual exclusion via the shared bus.
-			if (newVal.length > 0 && oldVal.length === 0 && !this.loadingAllMatching) {
+			// Only fire for user-initiated transitions — not after a programmatic mass-select
+			// (selectAllMatching = true) so concurrent sections don't clear each other.
+			if (newVal.length > 0 && oldVal.length === 0 && !this.loadingAllMatching && !this.selectAllMatching) {
 				this.bus.emit('section-selected', this.searchQuery)
 			}
 		},
@@ -876,16 +876,23 @@ export default {
 		/**
 		 * Triggered by the in-page banner button to select all messages in the
 		 * current folder/filter without going through the search modal.
+		 * Unlike the concurrent bus-triggered path, this is a single-section
+		 * intentional action so mutual exclusion should fire on completion.
 		 */
 		selectAllMatchingAction() {
-			this.onBusSelectAllMatching()
+			this.onBusSelectAllMatching({ emitSectionSelected: true })
 		},
 
 		/**
 		 * Handler for the 'select-all-matching' bus event.
 		 * Forces a fresh load, then fetches all pages and selects everything.
+		 *
+		 * @param {object} [options] Options
+		 * @param {boolean} [options.emitSectionSelected] Emit 'section-selected' on completion
+		 *   to enforce mutual exclusion. Should be true only for single-section banner clicks,
+		 *   not for concurrent bus-triggered mass-selects (search modal path).
 		 */
-		async onBusSelectAllMatching() {
+		async onBusSelectAllMatching({ emitSectionSelected = false } = {}) {
 			// Set flag before yield to block the searchQuery watcher
 			this.loadingAllMatching = true
 			// appendToSearch() props lag one render tick — wait for section-filtered searchQuery
@@ -918,7 +925,7 @@ export default {
 					logger.warn(`Mass select capped at ${MAX_SELECT_MESSAGES} messages (${this.flatEnvelopeList.length} loaded) to prevent OOM`)
 				}
 				this.selection = this.flatEnvelopeList.slice(0, MAX_SELECT_MESSAGES).map((e) => e.databaseId)
-				if (this.selection.length > 0) {
+				if (emitSectionSelected && this.selection.length > 0) {
 					this.bus.emit('section-selected', effectiveQuery)
 				}
 			} catch (error) {
@@ -1012,7 +1019,10 @@ export default {
 }
 
 .select-all-limit-warning {
-	color: var(--color-warning);
+	color: var(--color-main-text);
+	background-color: var(--color-warning);
+	border-radius: var(--border-radius);
+	padding: 2px 6px;
 }
 
 .select-all-banner {
