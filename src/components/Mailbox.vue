@@ -316,7 +316,7 @@ export default {
 		 * about how many messages are available and how to select more.
 		 */
 		selectAllHint() {
-			if (this.isPriorityInbox || this.endReached || this.flatEnvelopeList.length === 0) {
+			if (this.paginate === 'manual' || this.endReached || this.flatEnvelopeList.length === 0) {
 				return ''
 			}
 			if (this.hasFilter) {
