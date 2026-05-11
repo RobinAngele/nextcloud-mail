@@ -218,6 +218,7 @@ import {
 import useMainStore from '../store/mainStore.js'
 import { groupEnvelopesByDate } from '../util/groupedEnvelopes.js'
 import {
+	favoritesQuery,
 	priorityImportantQuery,
 	priorityOtherQuery,
 } from '../util/priorityInbox.js'
@@ -277,7 +278,7 @@ export default {
 
 			priorityImportantQuery,
 			priorityOtherQuery,
-			favoriteQuery: 'is:starred',
+			favoriteQuery: favoritesQuery,
 			favoriteInitialPageSize: 5,
 			startMailboxTimer: undefined,
 			hasContent: false,

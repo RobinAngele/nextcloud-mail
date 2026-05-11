@@ -114,7 +114,7 @@ import NoTrashMailboxConfiguredError
 import logger from '../logger.js'
 import useMainStore from '../store/mainStore.js'
 import { mailboxHasRights } from '../util/acl.js'
-import { priorityImportantQuery, priorityOtherQuery } from '../util/priorityInbox.js'
+import { favoritesQuery, priorityImportantQuery, priorityOtherQuery } from '../util/priorityInbox.js'
 import { wait } from '../util/wait.js'
 
 // Hard cap: unified mailboxes fan out to N_accounts sub-fetches per page, so
@@ -278,8 +278,8 @@ export default {
 				return false
 			}
 			const trimmed = this.searchQuery.trim()
-			// Priority inbox uses system queries that should not count as user filters
-			if (trimmed === priorityImportantQuery || trimmed === priorityOtherQuery) {
+			// System section queries that should not count as user filters
+			if (trimmed === priorityImportantQuery || trimmed === priorityOtherQuery || trimmed === favoritesQuery) {
 				return false
 			}
 			return !/^match:allof\s*$/.test(trimmed)

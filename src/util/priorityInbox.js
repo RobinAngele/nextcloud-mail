@@ -9,6 +9,9 @@ export const priorityImportantQuery = 'is:pi-important'
 /** Search query for other messages inside priority inbox */
 export const priorityOtherQuery = 'is:pi-other'
 
+/** Search query used by the Favorites section (starred messages) */
+export const favoritesQuery = 'is:starred'
+
 /**
  * Return an array of all search queries inside the priority inbox
  *
