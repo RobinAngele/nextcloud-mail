@@ -15,8 +15,8 @@
 			v-else-if="loadingCacheInitialization"
 			:hint="t('mail', 'Loading messages …')"
 			:slow-hint="t('mail', 'Indexing your messages. This can take a bit longer for larger folders.')" />
-		<EmptyMailboxSection v-else-if="isPriorityInbox && !hasMessages" key="empty" />
-		<EmptyMailbox v-else-if="!hasMessages" key="empty" />
+		<EmptyMailboxSection v-else-if="isPriorityInbox && !hasMessages && !loadingAllMatching" key="empty-section" />
+		<EmptyMailbox v-else-if="!hasMessages && !loadingAllMatching" key="empty-mailbox" />
 		<div v-else>
 			<NcCheckboxRadioSwitch
 				:model-value="selectMode"
@@ -924,6 +924,8 @@ export default {
 					this.selectionLimitReached = true
 					logger.warn(`Mass select capped at ${MAX_SELECT_MESSAGES} messages (${this.flatEnvelopeList.length} loaded) to prevent OOM`)
 				}
+				// Wait for groupEnvelopes prop to propagate from parent (one render cycle)
+				await this.$nextTick()
 				this.selection = this.flatEnvelopeList.slice(0, MAX_SELECT_MESSAGES).map((e) => e.databaseId)
 				if (emitSectionSelected && this.selection.length > 0) {
 					this.bus.emit('section-selected', effectiveQuery)
