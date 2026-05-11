@@ -285,7 +285,7 @@ methods: {
 
 #### Event flow
 
-```
+```text
 SearchMessages
   │  @select-all-matching
   ▼
@@ -431,7 +431,7 @@ opt in before triggering multiple API calls.
 
 Per the repository's `AGENTS.md`, every commit must include:
 
-```
+```text
 AI-assisted: Cline (Claude)
 Signed-off-by: RobinAngele <robin@robin4consulting.com>
 ```
@@ -485,7 +485,7 @@ performing the bulk operation server-side would be significantly faster for
 large mailboxes.
 
 Suggested endpoint:
-```
+```http
 POST /apps/mail/api/mailbox/{id}/bulk
 Body: { query: "subject:invoice start:1717977600", action: "delete" }
 ```

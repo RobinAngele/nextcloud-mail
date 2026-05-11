@@ -167,7 +167,7 @@
 import { showError } from '@nextcloud/dialogs'
 import { NcActionButton as ActionButton, NcActions as Actions, NcButton, NcDialog } from '@nextcloud/vue'
 import { mapStores } from 'pinia'
-import { differenceWith } from 'ramda'
+
 import AlertOctagonIcon from 'vue-material-design-icons/AlertOctagonOutline.vue'
 import IconSelect from 'vue-material-design-icons/CloseThick.vue'
 import EmailRead from 'vue-material-design-icons/EmailOpenOutline.vue'
@@ -401,10 +401,6 @@ export default {
 			if (cleanedSelection.length !== this.selection.length) {
 				this.$emit('update:selection', cleanedSelection, this.envelopes)
 			}
-			differenceWith((a, b) => a.databaseId === b.databaseId, oldVal, newVal)
-				.forEach((env) => {
-					env.flags.selected = false
-				})
 		},
 	},
 
