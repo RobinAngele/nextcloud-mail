@@ -28,15 +28,15 @@
 			</NcCheckboxRadioSwitch>
 			<div v-if="loadingAllMatching" class="select-all-loading">
 				<NcLoadingIcon :size="16" />
-				<span>{{ t('mail', 'Selecting messages…') }}</span>
+				<span>{{ t('mail', 'Loading all matching messages…') }}</span>
 			</div>
 			<div v-if="selectAllHint && !loadingAllMatching && !allSelected && !selectionLimitReached" class="select-all-hint">
 				{{ selectAllHint }}
 			</div>
 			<div v-if="selectionLimitReached" class="select-all-hint select-all-limit-warning">
 				{{ n('mail',
-					'Too many messages — only the first {count} could be selected.',
-					'Too many messages — only the first {count} could be selected.',
+					'Selection limited to {count} message — use a filter to narrow results, or process in several batches.',
+					'Selection limited to {count} messages — use a filter to narrow results, or process in several batches.',
 					flatEnvelopeList.length, { count: flatEnvelopeList.length }) }}
 			</div>
 			<div
@@ -53,7 +53,7 @@
 					flatEnvelopeList.length,
 					{ visible: flatEnvelopeList.length }) }}</span>
 				<NcButton type="primary" @click="selectAllMatchingAction">
-					{{ t('mail', 'Select all matching messages') }}
+					{{ hasFilter ? t('mail', 'Select all matching messages') : t('mail', 'Select all messages in this folder') }}
 				</NcButton>
 			</div>
 			<template v-if="hasGroupedEnvelopes && !isPriorityInbox">
@@ -320,9 +320,9 @@ export default {
 				return ''
 			}
 			if (this.hasFilter) {
-				return this.t('mail', 'Scroll down to include more messages or click an avatar circle to select one at a time')
+				return this.t('mail', 'Scroll down to load more messages, or click an avatar circle to select one at a time')
 			}
-			return this.t('mail', 'Scroll down to include more messages, use filter to refine, or click an avatar circle to select one at a time')
+			return this.t('mail', 'Scroll down to load more messages, use a filter to refine, or click an avatar circle to select one at a time')
 		},
 	},
 
@@ -910,6 +910,7 @@ export default {
 				if (loadFailed) {
 					this.selectAllMatching = false
 					logger.error('Mass select aborted: a page failed to load')
+					showError(t('mail', 'Could not load all messages. Partial selection may be incomplete.'))
 					return
 				}
 				if (!this.endReached && this.flatEnvelopeList.length >= MAX_SELECT_MESSAGES) {
@@ -924,6 +925,8 @@ export default {
 				}
 			} catch (error) {
 				logger.error('Failed to load all matching envelopes', { error })
+				this.selectAllMatching = false
+				showError(t('mail', 'Could not load all messages. Please try again.'))
 			} finally {
 				this.loadingAllMatching = false
 			}
@@ -942,7 +945,7 @@ export default {
 				this.selectAllMatching = false
 				this.selectionLimitReached = false
 				if (wasUserInitiated) {
-					showInfo(t('mail', 'Previous section selection was cleared'))
+					showInfo(t('mail', 'Selection cleared — only one Priority inbox section can be selected at a time'))
 				}
 			}
 		},
