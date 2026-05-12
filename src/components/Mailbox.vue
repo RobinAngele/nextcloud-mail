@@ -910,7 +910,7 @@ export default {
 				if (loadFailed) {
 					this.selectAllMatching = false
 					logger.error('Mass select aborted: a page failed to load')
-					showError(t('mail', 'Could not load all messages. Partial selection may be incomplete.'))
+					showError(t('mail', 'Could not load all messages. Please try again.'))
 					return
 				}
 				if (!this.endReached && this.flatEnvelopeList.length >= MAX_SELECT_MESSAGES) {
