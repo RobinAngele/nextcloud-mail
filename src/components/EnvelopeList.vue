@@ -372,16 +372,11 @@ export default {
 	watch: {
 		selection: {
 			handler(newSelection) {
-				// Skip sync during local toggle to avoid race condition
-				// where the watcher overwrites flags.selected set by
-				// a local click before emitLocalSelection reads it.
 				if (this._localToggleInProgress) {
 					return
 				}
-				// Sync flags.selected with the global selection prop.
-				// This ensures checkboxes stay correct when another
-				// EnvelopeList instance changes the selection (e.g. shift-click
-				// across groups, or Select All / Unselect All).
+				// Sync flags.selected when the selection changes from outside this
+				// instance (e.g. shift-click across groups, Select All / Unselect All).
 				const selectionSet = new Set(newSelection)
 				this.sortedEnvelops.forEach((env) => {
 					env.flags.selected = selectionSet.has(env.databaseId)
@@ -565,27 +560,20 @@ export default {
 			this.unselectAll()
 		},
 
-		setEnvelopeSelected(envelope, selected) {
-			const alreadySelected = this.selection.includes(envelope.databaseId)
-			if (selected && !alreadySelected) {
-				envelope.flags.selected = true
-			} else if (!selected && alreadySelected) {
-				envelope.flags.selected = false
-			}
-		},
-
-		emitLocalSelection() {
-			const localIds = this.sortedEnvelops
-				.filter((env) => env.flags.selected)
-				.map((env) => env.databaseId)
-			this.$emit('update:selection', localIds, this.envelopes)
-		},
-
 		onEnvelopeSelectToggle(envelope, index, selected) {
 			this.lastToggledIndex = index
 			this._localToggleInProgress = true
-			this.setEnvelopeSelected(envelope, selected)
-			this.emitLocalSelection()
+			// Compute new local selection from the authoritative prop, applying this
+			// single toggle. flags.selected is unreliable here: the selection watcher
+			// may have been skipped (while _localToggleInProgress was true) leaving
+			// flags stale, and Pinia store updates can replace the flags object
+			// entirely, wiping selected=true during a background sync.
+			const myIds = new Set(this.sortedEnvelops.map((e) => e.databaseId))
+			const currentLocal = this.selection.filter((id) => myIds.has(id))
+			const newLocal = selected
+				? [...new Set([...currentLocal, envelope.databaseId])]
+				: currentLocal.filter((id) => id !== envelope.databaseId)
+			this.$emit('update:selection', newLocal, this.envelopes)
 			// Reset after next tick — Vue batches watchers at end of tick
 			this.$nextTick(() => {
 				this._localToggleInProgress = false
