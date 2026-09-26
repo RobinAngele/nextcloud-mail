@@ -28,6 +28,21 @@
 					{{ n('mail', 'Select %n message', 'Select all %n messages', flatEnvelopeList.length) }}
 				</NcCheckboxRadioSwitch>
 			</div>
+			<div v-else-if="canSelectAllMatching" class="select-all-matching">
+				<span>{{ n('mail', 'All %n loaded message is selected.', 'All %n loaded messages are selected.', selection.length) }}</span>
+				<NcButton
+					variant="tertiary"
+					:disabled="loadingAllEnvelopes"
+					@click="selectAllMatching">
+					<template v-if="loadingAllEnvelopes" #icon>
+						<NcLoadingIcon :size="20" />
+					</template>
+					{{ searchQuery ? t('mail', 'Select all matching messages') : t('mail', 'Select all messages in this folder') }}
+				</NcButton>
+			</div>
+			<p v-if="selectionLimitReached" class="select-all-matching">
+				{{ n('mail', 'Only the first %n message was selected.', 'Only the first %n messages were selected.', maxSelectedEnvelopes) }}
+			</p>
 			<template v-if="hasGroupedEnvelopes && !isPriorityInbox">
 				<div v-for="([label, group], index) in groupEnvelopes" :key="label">
 					<SectionTitle class="section-title" :name="getLabelForGroup(label)" />
@@ -71,7 +86,7 @@
 
 <script>
 import { showError, showWarning } from '@nextcloud/dialogs'
-import { NcCheckboxRadioSwitch } from '@nextcloud/vue'
+import { NcButton, NcCheckboxRadioSwitch, NcLoadingIcon } from '@nextcloud/vue'
 import { mapStores } from 'pinia'
 import { findIndex, propEq } from 'ramda'
 import EmptyMailbox from './EmptyMailbox.vue'
@@ -92,6 +107,8 @@ import { mailboxHasRights } from '../util/acl.js'
 import { sortEnvelopes } from '../util/sortEnvelopes.js'
 import { wait } from '../util/wait.js'
 
+const MAX_SELECTED_ENVELOPES = 500
+
 export default {
 	name: 'Mailbox',
 	components: {
@@ -101,7 +118,9 @@ export default {
 		Error,
 		Loading,
 		LoadingSkeleton,
+		NcButton,
 		NcCheckboxRadioSwitch,
+		NcLoadingIcon,
 		SectionTitle,
 	},
 
@@ -169,6 +188,9 @@ export default {
 			skipListTransition: false,
 			selection: [],
 			selectionAnchor: undefined,
+			loadingAllEnvelopes: false,
+			selectionLimitReached: false,
+			maxSelectedEnvelopes: MAX_SELECTED_ENVELOPES,
 		}
 	},
 
@@ -222,6 +244,14 @@ export default {
 
 		selectMode() {
 			return this.selection.length > 0
+		},
+
+		canSelectAllMatching() {
+			return !this.isPriorityInbox
+				&& this.paginate !== 'manual'
+				&& !this.endReached
+				&& !this.selectionLimitReached
+				&& this.selection.length === this.flatEnvelopeList.length
 		},
 	},
 
@@ -712,7 +742,37 @@ export default {
 
 		unselectAll() {
 			this.selectionAnchor = undefined
+			this.selectionLimitReached = false
 			this.setSelection([])
+		},
+
+		async selectAllMatching() {
+			const mailbox = this.mailbox
+			const searchQuery = this.searchQuery
+			const isSameList = () => this.mailbox === mailbox && this.searchQuery === searchQuery
+
+			this.loadingAllEnvelopes = true
+			try {
+				while (!this.endReached && this.flatEnvelopeList.length < MAX_SELECTED_ENVELOPES) {
+					const loaded = this.flatEnvelopeList.length
+					await this.loadMore()
+					await this.$nextTick()
+					if (!isSameList()) {
+						return
+					}
+					if (this.flatEnvelopeList.length === loaded && !this.endReached) {
+						showError(t('mail', 'Could not load all messages'))
+						return
+					}
+				}
+
+				this.selectionLimitReached = !this.endReached || this.flatEnvelopeList.length > MAX_SELECTED_ENVELOPES
+				this.setSelection(this.flatEnvelopeList
+					.slice(0, MAX_SELECTED_ENVELOPES)
+					.map((envelope) => envelope.databaseId))
+			} finally {
+				this.loadingAllEnvelopes = false
+			}
 		},
 
 		getLabelForGroup(group) {
@@ -759,5 +819,15 @@ export default {
 	margin-top: calc(2 * var(--default-grid-baseline));
 	padding: var(--default-grid-baseline) calc(2 * var(--default-grid-baseline));
 	border-bottom: 1px solid var(--color-border);
+}
+
+.select-all-matching {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--default-grid-baseline);
+	padding: var(--default-grid-baseline) calc(2 * var(--default-grid-baseline));
+	border-bottom: 1px solid var(--color-border);
+	color: var(--color-text-maxcontrast);
 }
 </style>

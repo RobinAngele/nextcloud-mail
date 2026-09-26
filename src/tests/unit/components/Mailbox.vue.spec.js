@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import { showError } from '@nextcloud/dialogs'
 import { createLocalVue, mount, shallowMount } from '@vue/test-utils'
 import mitt from 'mitt'
 import { createPinia, setActivePinia } from 'pinia'
@@ -10,6 +11,11 @@ import EnvelopeList from '../../../components/EnvelopeList.vue'
 import Mailbox from '../../../components/Mailbox.vue'
 import Nextcloud from '../../../mixins/Nextcloud.js'
 import useMainStore from '../../../store/mainStore.js'
+
+vi.mock('@nextcloud/dialogs', async (importOriginal) => ({
+	...await importOriginal(),
+	showError: vi.fn(),
+}))
 
 const localVue = createLocalVue()
 
@@ -238,5 +244,123 @@ describe('Mailbox selection with date groups', () => {
 		await wrapper.setProps({ groupEnvelopes: [['today', [envelopes[0]]], ['yesterday', [envelopes[3]]]] })
 
 		expect(wrapper.vm.selection).toEqual([1, 4])
+	})
+})
+
+describe('Mailbox select all matching', () => {
+	let wrapper
+	let store
+
+	const page = (from, size) => Array.from({ length: size }, (_, i) => envelope(from + i, -(from + i)))
+
+	const mountMailbox = ({ isPriorityInbox = false } = {}) => {
+		wrapper = shallowMount(Mailbox, {
+			propsData: {
+				account: {},
+				mailbox: { databaseId: 1 },
+				bus: mitt(),
+				isPriorityInbox,
+			},
+			data: () => ({
+				testEnvelopes: page(1, 20),
+			}),
+			computed: {
+				envelopes() {
+					return this.testEnvelopes
+				},
+			},
+			mocks: {
+				$route: { params: {} },
+			},
+			localVue,
+		})
+		return wrapper.vm
+	}
+
+	beforeEach(() => {
+		setActivePinia(createPinia())
+		store = useMainStore()
+		store.setHasFetchedInitialEnvelopesMutation(true)
+		showError.mockClear()
+	})
+
+	afterEach(() => {
+		wrapper.destroy()
+	})
+
+	it('offers to select all messages once all loaded messages are selected', async () => {
+		const vm = mountMailbox()
+
+		vm.selectAll()
+		await vm.$nextTick()
+
+		expect(wrapper.find('.select-all-matching').exists()).toBe(true)
+	})
+
+	it('does not offer to select all messages in the priority inbox', async () => {
+		const vm = mountMailbox({ isPriorityInbox: true })
+
+		vm.selectAll()
+		await vm.$nextTick()
+
+		expect(vm.canSelectAllMatching).toBe(false)
+	})
+
+	it('loads the remaining pages and selects every message', async () => {
+		const vm = mountMailbox()
+		const pages = [page(21, 20), page(41, 5), []]
+		store.fetchNextEnvelopePage = vi.fn(async () => {
+			const next = pages.shift()
+			vm.testEnvelopes = [...vm.testEnvelopes, ...next]
+			return next
+		})
+
+		await vm.selectAllMatching()
+
+		expect(store.fetchNextEnvelopePage).toHaveBeenCalledTimes(3)
+		expect(vm.selection).toHaveLength(45)
+		expect(vm.selectionLimitReached).toBe(false)
+		expect(vm.loadingAllEnvelopes).toBe(false)
+	})
+
+	it('stops at the selection limit', async () => {
+		const vm = mountMailbox()
+		store.fetchNextEnvelopePage = vi.fn(async () => {
+			const next = page(vm.testEnvelopes.length + 1, 100)
+			vm.testEnvelopes = [...vm.testEnvelopes, ...next]
+			return next
+		})
+
+		await vm.selectAllMatching()
+
+		expect(vm.selection).toHaveLength(vm.maxSelectedEnvelopes)
+		expect(vm.selectionLimitReached).toBe(true)
+	})
+
+	it('stops and reports an error when a page cannot be loaded', async () => {
+		const vm = mountMailbox()
+		store.fetchNextEnvelopePage = vi.fn().mockRejectedValue(new Error('network'))
+
+		await vm.selectAllMatching()
+
+		expect(store.fetchNextEnvelopePage).toHaveBeenCalledTimes(1)
+		expect(showError).toHaveBeenCalled()
+		expect(vm.selection).toEqual([])
+		expect(vm.loadingAllEnvelopes).toBe(false)
+	})
+
+	it('stops when the folder changes while loading', async () => {
+		const vm = mountMailbox()
+		store.fetchNextEnvelopePage = vi.fn(async () => {
+			await wrapper.setProps({ mailbox: { databaseId: 2 } })
+			return page(100, 20)
+		})
+		vm.loadEnvelopes = vi.fn(async () => {})
+		vm.sync = vi.fn(async () => {})
+
+		await vm.selectAllMatching()
+
+		expect(store.fetchNextEnvelopePage).toHaveBeenCalledTimes(1)
+		expect(vm.selection).toEqual([])
 	})
 })
